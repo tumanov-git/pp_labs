@@ -2,8 +2,8 @@ import re
 import sys
 from pathlib import Path
 from typing import Iterable
-from urllib.error import URLError, HTTPError
-from urllib.request import urlopen
+from urllib.parse import urlparse
+import requests
 
 ROMAN_PATTERN = re.compile(
     r"\bM{0,3}(CM|CD|D?C{0,3})"
@@ -21,10 +21,24 @@ def _iter_roman(text: str) -> Iterable[str]:
         yield match.group()
 
 
+def _validate_url(url: str) -> bool:
+    try:
+        result = urlparse(url)
+        return all([result.scheme, result.netloc])
+    except Exception:
+        return False
+
+
 def _read_url(url: str) -> str:
-    with urlopen(url) as response:
-        encoding = response.headers.get_content_charset() or "utf-8"
-        return response.read().decode(encoding, errors="replace")
+    if not _validate_url(url):
+        raise ValueError("Некорректный URL")
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    }
+    response = requests.get(url, headers=headers, timeout=10)
+    response.raise_for_status()
+    response.encoding = response.apparent_encoding or "utf-8"
+    return response.text
 
 
 def _read_file(path: Path) -> str:
@@ -58,7 +72,7 @@ def _handle_url_input() -> None:
     url = input("Введите URL: ").strip()
     try:
         text = _read_url(url)
-    except (HTTPError, URLError, OSError) as exc:
+    except (ValueError, requests.RequestException, OSError) as exc:
         print(f"Не удалось загрузить данные: {exc}")
         return
     _handle_text_source(text)
