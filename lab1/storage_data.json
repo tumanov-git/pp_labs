@@ -1,0 +1,211 @@
+{
+  "guests": [
+    {
+      "storage_id": 1,
+      "data": {
+        "guest_id": "G001",
+        "name": "Иван Петров (обновлено)",
+        "contact": {
+          "email": "ivanpetrov@shrek.com",
+          "phone": "+7-900-123-45-67",
+          "address": "Москва, Россия"
+        },
+        "arrival_date": "2024-06-01T14:00:00",
+        "departure_date": "2024-06-05T12:00:00"
+      }
+    },
+    {
+      "storage_id": 2,
+      "data": {
+        "guest_id": "G002",
+        "name": "Мария Сидорова",
+        "contact": {
+          "email": "mariasidorova@shrek.com",
+          "phone": "+7-900-555-77-88",
+          "address": "Санкт-Петербург, Россия"
+        },
+        "arrival_date": "2024-06-03T12:00:00",
+        "departure_date": "2024-06-07T11:00:00"
+      }
+    }
+  ],
+  "staff_members": [
+    {
+      "storage_id": 1,
+      "data": {
+        "staff_id": "S001",
+        "name": "Анна Волкова",
+        "position": "Массажист",
+        "contact": {
+          "email": "annamassage@shrek.com",
+          "phone": "+7-900-987-65-43",
+          "address": null
+        },
+        "specializations": [
+          "Шведский массаж",
+          "Лечебный массаж"
+        ]
+      }
+    },
+    {
+      "storage_id": 2,
+      "data": {
+        "staff_id": "S002",
+        "name": "Пётр Грязев",
+        "position": "Специалист по грязевым ваннам",
+        "contact": {
+          "email": "petrgryazev@shrek.com",
+          "phone": "+7-900-111-22-33",
+          "address": null
+        },
+        "specializations": [
+          "Грязелечение"
+        ]
+      }
+    }
+  ],
+  "services": [
+    {
+      "storage_id": 1,
+      "data": {
+        "service_id": "SRV001",
+        "name": "Лечебная грязевая ванна",
+        "service_type": "грязевая_ванна",
+        "base_price": {
+          "amount": 2500.0,
+          "currency": "RUB"
+        },
+        "duration_minutes": 60,
+        "description": null,
+        "required_resources": [
+          {
+            "resource_id": "R001",
+            "amount": 10.0
+          }
+        ]
+      }
+    },
+    {
+      "storage_id": 2,
+      "data": {
+        "service_id": "SRV002",
+        "name": "Расслабляющий массаж",
+        "service_type": "массаж",
+        "base_price": {
+          "amount": 3000.0,
+          "currency": "RUB"
+        },
+        "duration_minutes": 45,
+        "description": null,
+        "required_resources": []
+      }
+    }
+  ],
+  "locations": [
+    {
+      "storage_id": 1,
+      "data": {
+        "location_id": "L001",
+        "name": "Грязевая ванна №1",
+        "capacity": 2,
+        "location_type": "грязевая_ванна",
+        "description": null
+      }
+    },
+    {
+      "storage_id": 2,
+      "data": {
+        "location_id": "L002",
+        "name": "Массажный кабинет №3",
+        "capacity": 1,
+        "location_type": "массажный_кабинет",
+        "description": null
+      }
+    },
+    {
+      "storage_id": 3,
+      "data": {
+        "location_id": "L003",
+        "name": "Болотная тропа",
+        "capacity": 15,
+        "location_type": "тропа",
+        "description": null
+      }
+    }
+  ],
+  "resources": [
+    {
+      "storage_id": 1,
+      "data": {
+        "resource_id": "R001",
+        "name": "Лечебная болотная грязь",
+        "resource_type": "грязь",
+        "quantity": 450.0,
+        "unit": "кг"
+      }
+    }
+  ],
+  "bookings": [
+    {
+      "storage_id": 1,
+      "data": {
+        "booking_id": "B001",
+        "guest_id": "G001",
+        "service_id": "SRV001",
+        "location_id": "L001",
+        "staff_id": "S002",
+        "time_slot": {
+          "start_time": "2024-06-02T10:00:00",
+          "end_time": "2024-06-02T11:00:00"
+        },
+        "status": "подтверждено"
+      }
+    }
+  ],
+  "invoices": [
+    {
+      "storage_id": 1,
+      "data": {
+        "invoice_id": "INV001",
+        "guest_id": "G001",
+        "issue_date": "2024-06-05T10:00:00",
+        "items": [
+          {
+            "service_id": "SRV001",
+            "price": {
+              "amount": 2500.0,
+              "currency": "RUB"
+            }
+          },
+          {
+            "service_id": "SRV002",
+            "price": {
+              "amount": 2700.0,
+              "currency": "RUB"
+            }
+          }
+        ],
+        "status": "оплачен"
+      }
+    }
+  ],
+  "events": [
+    {
+      "storage_id": 1,
+      "data": {
+        "event_id": "E001",
+        "name": "Утренняя оздоровительная прогулка",
+        "event_type": "групповая_прогулка",
+        "time_slot": {
+          "start_time": "2024-06-03T08:00:00",
+          "end_time": "2024-06-03T09:00:00"
+        },
+        "location_id": "L003",
+        "participants": [
+          "G001"
+        ],
+        "description": null
+      }
+    }
+  ]
+}

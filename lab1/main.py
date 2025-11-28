@@ -119,6 +119,15 @@ def main():
     )
     location2_id = storage.create_location(location2)
     print(f"✓ Создано место ID={location2_id}: {location2}")
+    
+    location3 = Location(
+        location_id="L003",
+        name="Болотная тропа",
+        capacity=15,
+        location_type="тропа"
+    )
+    location3_id = storage.create_location(location3)
+    print(f"✓ Создано место ID={location3_id}: {location3}")
     print()
     
     # Создать ресурсы
@@ -217,12 +226,7 @@ def main():
             start_time=datetime(2024, 6, 3, 8, 0),
             end_time=datetime(2024, 6, 3, 9, 0)
         ),
-        location=Location(
-            location_id="L003",
-            name="Болотная тропа",
-            capacity=15,
-            location_type="тропа"
-        )
+        location=location3
     )
     event1.add_participant(guest1)
     event1_id = storage.create_event(event1)
@@ -338,9 +342,40 @@ def main():
     print(f"Счетов в хранилище: {len(storage.list_invoices())}")
     print(f"Событий в хранилище: {len(storage.list_events())}")
     print()
+
+    print("=" * 70)
+    print("6. СОХРАНЕНИЕ И ЗАГРУЗКА ДАННЫХ")
+    print("=" * 70)
+    print()
+
+    json_path = "storage_data.json"
+    xml_path = "storage_data.xml"
+    storage.save_to_json(json_path)
+    print(f"✓ Данные сохранены в JSON-файл: {json_path}")
+    storage.save_to_xml(xml_path)
+    print(f"✓ Данные сохранены в XML-файл: {xml_path}")
+    print()
+
+    storage.clear_all()
+    print("Хранилище очищено.")
+    print(f"  Гостей осталось: {len(storage.list_guests())}")
+    print(f"  Бронирований осталось: {len(storage.list_bookings())}")
+    print()
+
+    storage.load_from_json(json_path)
+    print(f"✓ Данные восстановлены из JSON-файла: {json_path}")
+    print(f"  Гостей после загрузки: {len(storage.list_guests())}")
+    print(f"  Бронирований после загрузки: {len(storage.list_bookings())}")
+    loaded_guests = storage.list_guests()
+    if loaded_guests:
+        print(f"  Первый гость: {loaded_guests[0]}")
+    loaded_bookings = storage.list_bookings()
+    if loaded_bookings:
+        print(f"  Первое бронирование: {loaded_bookings[0]}")
+    print()
     
     print("=" * 70)
-    print("Демонстрация CRUD операций успешно завершена!")
+    print("Демонстрация CRUD и сериализации успешно завершена!")
     print("=" * 70)
 
 
