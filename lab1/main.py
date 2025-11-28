@@ -18,6 +18,7 @@ from models import (
     Invoice
 )
 from storage import ResortStorage
+from exceptions import EntityNotFoundError, ValidationError, StorageError
 
 
 def main():
@@ -240,8 +241,11 @@ def main():
     print()
     
     # Получить гостя по ID
-    retrieved_guest = storage.get_guest_by_id(guest1_id)
-    print(f"✓ Получен гость по ID={guest1_id}: {retrieved_guest}")
+    try:
+        retrieved_guest = storage.get_guest_by_id(guest1_id)
+        print(f"✓ Получен гость по ID={guest1_id}: {retrieved_guest}")
+    except EntityNotFoundError as e:
+        print(f"✗ Ошибка получения гостя: {e}")
     print()
     
     # Получить список всех гостей
@@ -279,25 +283,33 @@ def main():
     print()
     
     # Обновить данные гостя
-    guest1.name = "Иван Петров (обновлено)"
-    updated = storage.update_guest(guest1_id, guest1)
-    if updated:
+    try:
+        guest1.name = "Иван Петров (обновлено)"
+        storage.update_guest(guest1_id, guest1)
         updated_guest = storage.get_guest_by_id(guest1_id)
         print(f"✓ Обновлён гость ID={guest1_id}: {updated_guest}")
+    except EntityNotFoundError as e:
+        print(f"✗ Ошибка обновления гостя: {e}")
     print()
     
     # Обновить статус счёта
-    invoice1.mark_paid()
-    storage.update_invoice(invoice1_id, invoice1)
-    updated_invoice = storage.get_invoice_by_id(invoice1_id)
-    print(f"✓ Обновлён счёт ID={invoice1_id}: {updated_invoice}")
+    try:
+        invoice1.mark_paid()
+        storage.update_invoice(invoice1_id, invoice1)
+        updated_invoice = storage.get_invoice_by_id(invoice1_id)
+        print(f"✓ Обновлён счёт ID={invoice1_id}: {updated_invoice}")
+    except EntityNotFoundError as e:
+        print(f"✗ Ошибка обновления счёта: {e}")
     print()
     
     # Обновить количество ресурса
-    resource1.quantity = 450.0  # Потратили 50 кг
-    storage.update_resource(resource1_id, resource1)
-    updated_resource = storage.get_resource_by_id(resource1_id)
-    print(f"✓ Обновлён ресурс ID={resource1_id}: {updated_resource}")
+    try:
+        resource1.quantity = 450.0  # Потратили 50 кг
+        storage.update_resource(resource1_id, resource1)
+        updated_resource = storage.get_resource_by_id(resource1_id)
+        print(f"✓ Обновлён ресурс ID={resource1_id}: {updated_resource}")
+    except (EntityNotFoundError, ValidationError) as e:
+        print(f"✗ Ошибка обновления ресурса: {e}")
     print()
     
     # ========== DELETE - Удаление сущностей ==========
@@ -307,25 +319,23 @@ def main():
     print()
     
     # Удалить бронирование
-    deleted = storage.delete_booking(booking2_id)
-    if deleted:
+    try:
+        storage.delete_booking(booking2_id)
         print(f"✓ Удалено бронирование ID={booking2_id}")
         remaining_bookings = storage.list_bookings()
         print(f"  Осталось бронирований: {len(remaining_bookings)}")
+    except EntityNotFoundError as e:
+        print(f"✗ Ошибка удаления бронирования: {e}")
     print()
     
     # Удалить ресурс
-    deleted = storage.delete_resource(resource2_id)
-    if deleted:
+    try:
+        storage.delete_resource(resource2_id)
         print(f"✓ Удалён ресурс ID={resource2_id}")
         remaining_resources = storage.list_resources()
         print(f"  Осталось ресурсов: {len(remaining_resources)}")
-    print()
-    
-    # Попытка удалить несуществующую сущность
-    deleted = storage.delete_guest(999)
-    if not deleted:
-        print(f"✓ Попытка удалить несуществующего гостя ID=999: не найдено")
+    except EntityNotFoundError as e:
+        print(f"✗ Ошибка удаления ресурса: {e}")
     print()
     
     # ========== Итоговая статистика ==========
@@ -350,10 +360,18 @@ def main():
 
     json_path = "storage_data.json"
     xml_path = "storage_data.xml"
-    storage.save_to_json(json_path)
-    print(f"✓ Данные сохранены в JSON-файл: {json_path}")
-    storage.save_to_xml(xml_path)
-    print(f"✓ Данные сохранены в XML-файл: {xml_path}")
+    
+    try:
+        storage.save_to_json(json_path)
+        print(f"✓ Данные сохранены в JSON-файл: {json_path}")
+    except StorageError as e:
+        print(f"✗ Ошибка сохранения в JSON: {e}")
+    
+    try:
+        storage.save_to_xml(xml_path)
+        print(f"✓ Данные сохранены в XML-файл: {xml_path}")
+    except StorageError as e:
+        print(f"✗ Ошибка сохранения в XML: {e}")
     print()
 
     storage.clear_all()
@@ -362,20 +380,63 @@ def main():
     print(f"  Бронирований осталось: {len(storage.list_bookings())}")
     print()
 
-    storage.load_from_json(json_path)
-    print(f"✓ Данные восстановлены из JSON-файла: {json_path}")
-    print(f"  Гостей после загрузки: {len(storage.list_guests())}")
-    print(f"  Бронирований после загрузки: {len(storage.list_bookings())}")
-    loaded_guests = storage.list_guests()
-    if loaded_guests:
-        print(f"  Первый гость: {loaded_guests[0]}")
-    loaded_bookings = storage.list_bookings()
-    if loaded_bookings:
-        print(f"  Первое бронирование: {loaded_bookings[0]}")
+    try:
+        storage.load_from_json(json_path)
+        print(f"✓ Данные восстановлены из JSON-файла: {json_path}")
+        print(f"  Гостей после загрузки: {len(storage.list_guests())}")
+        print(f"  Бронирований после загрузки: {len(storage.list_bookings())}")
+        loaded_guests = storage.list_guests()
+        if loaded_guests:
+            print(f"  Первый гость: {loaded_guests[0]}")
+        loaded_bookings = storage.list_bookings()
+        if loaded_bookings:
+            print(f"  Первое бронирование: {loaded_bookings[0]}")
+    except StorageError as e:
+        print(f"✗ Ошибка загрузки из JSON: {e}")
+    print()
+    
+    # ========== ДЕМОНСТРАЦИЯ ОБРАБОТКИ ОШИБОК ==========
+    print("=" * 70)
+    print("7. ДЕМОНСТРАЦИЯ ОБРАБОТКИ ОШИБОК")
+    print("=" * 70)
+    print()
+    
+    # Попытка получить несуществующую сущность
+    print("Попытка получить несуществующего гостя:")
+    try:
+        non_existent_guest = storage.get_guest_by_id(999)
+        print(f"  Гость найден: {non_existent_guest}")
+    except EntityNotFoundError as e:
+        print(f"  ✗ Ошибка: {e}")
+    print()
+    
+    # Попытка создать услугу с отрицательной ценой
+    print("Попытка создать услугу с отрицательной ценой:")
+    try:
+        invalid_service = Service(
+            service_id="SRV999",
+            name="Невалидная услуга",
+            service_type="тест",
+            base_price=Money(-100.0, "RUB"),
+            duration_minutes=30
+        )
+        storage.create_service(invalid_service)
+        print(f"  Услуга создана: {invalid_service}")
+    except ValidationError as e:
+        print(f"  ✗ Ошибка валидации: {e}")
+    print()
+    
+    # Попытка загрузить несуществующий файл
+    print("Попытка загрузить несуществующий файл:")
+    try:
+        storage.load_from_json("несуществующий_файл.json")
+        print("  Файл успешно загружен")
+    except StorageError as e:
+        print(f"  ✗ Ошибка хранилища: {e}")
     print()
     
     print("=" * 70)
-    print("Демонстрация CRUD и сериализации успешно завершена!")
+    print("Демонстрация CRUD, сериализации и обработки ошибок завершена!")
     print("=" * 70)
 
 
