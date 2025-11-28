@@ -100,22 +100,22 @@ def _read_url(url: str) -> str:
             "image/webp,*/*;q=0.8"
         ),
         "Accept-Language": "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7",
-        "Accept-Encoding": "gzip, deflate, br",
+        "Accept-Encoding": "gzip, deflate",
         "Connection": "keep-alive",
         "Upgrade-Insecure-Requests": "1",
     }
     try:
         response = requests.get(normalized, headers=headers, timeout=10, allow_redirects=True)
         response.raise_for_status()
-    except requests.HTTPError as e:
-        if response.status_code == 401:
-            raise requests.RequestException("Сайт требует авторизацию. Доступ запрещён.")
-        elif response.status_code == 403:
-            raise requests.RequestException("Доступ к сайту запрещён. Сайт блокирует запросы.")
-        elif response.status_code == 404:
-            raise requests.RequestException("Страница не найдена.")
-        else:
-            raise
+    except requests.HTTPError as exc:
+        status_code = getattr(exc.response, "status_code", None)
+        if status_code == 401:
+            raise requests.RequestException("Сайт требует авторизацию. Доступ запрещён.") from exc
+        if status_code == 403:
+            raise requests.RequestException("Доступ к сайту запрещён. Сайт блокирует запросы.") from exc
+        if status_code == 404:
+            raise requests.RequestException("Страница не найдена.") from exc
+        raise requests.HTTPError(f"HTTP ошибка: {status_code or 'неизвестно'}", response=exc.response) from exc
     response.encoding = response.apparent_encoding or "utf-8"
     html_content = response.text
     return _extract_text_from_html(html_content)
@@ -123,7 +123,10 @@ def _read_url(url: str) -> str:
 
 def _read_file(path: Path) -> str:
     """Читает и возвращает содержимое локального файла."""
-    return path.read_text(encoding="utf-8")
+    try:
+        return path.read_text(encoding="utf-8")
+    except UnicodeDecodeError as exc:
+        raise ValueError("Файл должен быть в кодировке UTF-8.") from exc
 
 
 def _ask_mode() -> str:
@@ -147,12 +150,31 @@ def _handle_text_source(source: str) -> None:
         print("Римских чисел не найдено")
 
 
+def _format_error_message(exc: Exception, user_url: str) -> str:
+    """Создаёт дружелюбное сообщение об ошибке для пользователя CLI."""
+    if isinstance(exc, ValueError):
+        return str(exc)
+    if isinstance(exc, requests.HTTPError):
+        status_code = getattr(getattr(exc, "response", None), "status_code", None)
+        if status_code:
+            return f"HTTP ошибка {status_code} при обращении к {user_url or 'сайту'}."
+        return "Неизвестная HTTP ошибка."
+    if isinstance(exc, requests.Timeout):
+        return f"Время ожидания {user_url or 'сайта'} истекло."
+    if isinstance(exc, requests.ConnectionError):
+        return f"Не удалось подключиться к {user_url or 'сайту'}."
+    if isinstance(exc, OSError):
+        return f"Ошибка: {exc}"
+    return str(exc)
+
+
 def _handle_url_input() -> None:
     url = input("Введите URL: ").strip()
     try:
         text = _read_url(url)
     except (ValueError, requests.RequestException, OSError) as exc:
-        print(f"Не удалось загрузить данные: {exc}")
+        message = _format_error_message(exc, url)
+        print(f"Не удалось загрузить данные: {message}")
         return
     _handle_text_source(text)
 
@@ -161,7 +183,7 @@ def _handle_file_input() -> None:
     path = Path(input("Введите путь к файлу: ").strip())
     try:
         text = _read_file(path)
-    except OSError as exc:
+    except (OSError, ValueError) as exc:
         print(f"Не удалось открыть файл: {exc}")
         return
     _handle_text_source(text)
