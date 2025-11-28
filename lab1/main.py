@@ -1,6 +1,6 @@
 """
-Минимальный демонстрационный скрипт для доменной модели природного оздоровительного курорта.
-Создаёт примеры объектов и выводит их для демонстрации модели.
+Демонстрационный скрипт для доменной модели природного оздоровительного курорта.
+Создаёт примеры объектов через ResortStorage и демонстрирует CRUD-операции.
 """
 
 from datetime import datetime, timedelta
@@ -17,126 +17,199 @@ from models import (
     Event,
     Invoice
 )
+from storage import ResortStorage
 
 
 def main():
-    """Создать примеры объектов и продемонстрировать доменную модель."""
+    """Создать примеры объектов через ResortStorage и продемонстрировать CRUD-операции."""
     
-    # Создать контактную информацию
-    guest_contact = ContactInfo(
+    # Создать хранилище
+    storage = ResortStorage()
+    
+    print("=" * 70)
+    print("ПРИРОДНЫЙ ОЗДОРОВИТЕЛЬНЫЙ КУРОРТ - ДЕМОНСТРАЦИЯ CRUD ОПЕРАЦИЙ")
+    print("=" * 70)
+    print()
+    
+    # ========== CREATE - Создание сущностей ==========
+    print("=" * 70)
+    print("1. СОЗДАНИЕ СУЩНОСТЕЙ (CREATE)")
+    print("=" * 70)
+    print()
+    
+    # Создать гостей
+    guest1_contact = ContactInfo(
         email="ivanpetrov@shrek.com",
         phone="+7-900-123-45-67",
         address="Москва, Россия"
     )
-    
-    staff_contact = ContactInfo(
-        email="annamassage@shrek.com",
-        phone="+7-900-987-65-43"
-    )
-    
-    # Создать гостя
-    guest = Guest(
+    guest1 = Guest(
         guest_id="G001",
         name="Иван Петров",
-        contact=guest_contact
+        contact=guest1_contact
     )
-    guest.set_stay_dates(
+    guest1.set_stay_dates(
         arrival=datetime(2024, 6, 1, 14, 0),
         departure=datetime(2024, 6, 5, 12, 0)
     )
+    guest1_id = storage.create_guest(guest1)
+    print(f"✓ Создан гость ID={guest1_id}: {guest1}")
     
-    # Создать сотрудника
-    staff = StaffMember(
+    guest2 = Guest(
+        guest_id="G002",
+        name="Мария Сидорова",
+        contact=ContactInfo(
+            email="mariasidorova@shrek.com",
+            phone="+7-900-555-77-88",
+            address="Санкт-Петербург, Россия"
+        )
+    )
+    guest2.set_stay_dates(
+        arrival=datetime(2024, 6, 3, 12, 0),
+        departure=datetime(2024, 6, 7, 11, 0)
+    )
+    guest2_id = storage.create_guest(guest2)
+    print(f"✓ Создан гость ID={guest2_id}: {guest2}")
+    print()
+    
+    # Создать сотрудников
+    staff1 = StaffMember(
         staff_id="S001",
         name="Анна Волкова",
         position="Массажист",
-        contact=staff_contact
+        contact=ContactInfo(
+            email="annamassage@shrek.com",
+            phone="+7-900-987-65-43"
+        )
     )
-    staff.add_specialization("Шведский массаж")
-    staff.add_specialization("Лечебный массаж")
+    staff1.add_specialization("Шведский массаж")
+    staff1.add_specialization("Лечебный массаж")
+    staff1_id = storage.create_staff_member(staff1)
+    print(f"✓ Создан сотрудник ID={staff1_id}: {staff1}")
+    
+    staff2 = StaffMember(
+        staff_id="S002",
+        name="Пётр Грязев",
+        position="Специалист по грязевым ваннам",
+        contact=ContactInfo(
+            email="petrgryazev@shrek.com",
+            phone="+7-900-111-22-33"
+        )
+    )
+    staff2.add_specialization("Грязелечение")
+    staff2_id = storage.create_staff_member(staff2)
+    print(f"✓ Создан сотрудник ID={staff2_id}: {staff2}")
+    print()
     
     # Создать места
-    mud_bath_location = Location(
+    location1 = Location(
         location_id="L001",
         name="Грязевая ванна №1",
         capacity=2,
         location_type="грязевая_ванна"
     )
+    location1_id = storage.create_location(location1)
+    print(f"✓ Создано место ID={location1_id}: {location1}")
     
-    massage_room = Location(
+    location2 = Location(
         location_id="L002",
         name="Массажный кабинет №3",
         capacity=1,
         location_type="массажный_кабинет"
     )
+    location2_id = storage.create_location(location2)
+    print(f"✓ Создано место ID={location2_id}: {location2}")
+    print()
     
     # Создать ресурсы
-    therapeutic_mud = Resource(
+    resource1 = Resource(
         resource_id="R001",
         name="Лечебная болотная грязь",
         resource_type="грязь",
         quantity=500.0,
         unit="кг"
     )
+    resource1_id = storage.create_resource(resource1)
+    print(f"✓ Создан ресурс ID={resource1_id}: {resource1}")
     
-    herbs = Resource(
+    resource2 = Resource(
         resource_id="R002",
         name="Коллекция болотных трав",
         resource_type="травы",
         quantity=100.0,
         unit="кг"
     )
+    resource2_id = storage.create_resource(resource2)
+    print(f"✓ Создан ресурс ID={resource2_id}: {resource2}")
+    print()
     
     # Создать услуги
-    mud_bath_service = Service(
+    service1 = Service(
         service_id="SRV001",
         name="Лечебная грязевая ванна",
         service_type="грязевая_ванна",
         base_price=Money(2500.0, "RUB"),
         duration_minutes=60
     )
-    mud_bath_service.add_required_resource("R001", 10.0)
+    service1.add_required_resource("R001", 10.0)
+    service1_id = storage.create_service(service1)
+    print(f"✓ Создана услуга ID={service1_id}: {service1}")
     
-    massage_service = Service(
+    service2 = Service(
         service_id="SRV002",
         name="Расслабляющий массаж",
         service_type="массаж",
         base_price=Money(3000.0, "RUB"),
         duration_minutes=45
     )
-    
-    # Создать временные слоты
-    morning_slot = TimeSlot(
-        start_time=datetime(2024, 6, 2, 10, 0),
-        end_time=datetime(2024, 6, 2, 11, 0)
-    )
-    
-    afternoon_slot = TimeSlot(
-        start_time=datetime(2024, 6, 2, 14, 0),
-        end_time=datetime(2024, 6, 2, 14, 45)
-    )
+    service2_id = storage.create_service(service2)
+    print(f"✓ Создана услуга ID={service2_id}: {service2}")
+    print()
     
     # Создать бронирования
-    mud_bath_booking = Booking(
+    booking1 = Booking(
         booking_id="B001",
-        guest=guest,
-        service=mud_bath_service,
-        time_slot=morning_slot,
-        location=mud_bath_location
+        guest=guest1,
+        service=service1,
+        time_slot=TimeSlot(
+            start_time=datetime(2024, 6, 2, 10, 0),
+            end_time=datetime(2024, 6, 2, 11, 0)
+        ),
+        location=location1
     )
-    mud_bath_booking.assign_staff(staff)
+    booking1.assign_staff(staff2)
+    booking1_id = storage.create_booking(booking1)
+    print(f"✓ Создано бронирование ID={booking1_id}: {booking1}")
     
-    massage_booking = Booking(
+    booking2 = Booking(
         booking_id="B002",
-        guest=guest,
-        service=massage_service,
-        time_slot=afternoon_slot,
-        location=massage_room
+        guest=guest1,
+        service=service2,
+        time_slot=TimeSlot(
+            start_time=datetime(2024, 6, 2, 14, 0),
+            end_time=datetime(2024, 6, 2, 14, 45)
+        ),
+        location=location2
     )
-    massage_booking.assign_staff(staff)
+    booking2.assign_staff(staff1)
+    booking2_id = storage.create_booking(booking2)
+    print(f"✓ Создано бронирование ID={booking2_id}: {booking2}")
+    print()
+    
+    # Создать счёт
+    invoice1 = Invoice(
+        invoice_id="INV001",
+        guest=guest1,
+        issue_date=datetime(2024, 6, 5, 10, 0)
+    )
+    invoice1.add_item(service1, service1.calculate_price())
+    invoice1.add_item(service2, service2.calculate_price(discount_percent=10.0))
+    invoice1_id = storage.create_invoice(invoice1)
+    print(f"✓ Создан счёт ID={invoice1_id}: {invoice1}")
+    print()
     
     # Создать событие
-    wellness_walk = Event(
+    event1 = Event(
         event_id="E001",
         name="Утренняя оздоровительная прогулка",
         event_type="групповая_прогулка",
@@ -151,78 +224,124 @@ def main():
             location_type="тропа"
         )
     )
-    wellness_walk.add_participant(guest)
-    
-    # Создать счёт
-    invoice = Invoice(
-        invoice_id="INV001",
-        guest=guest,
-        issue_date=datetime(2024, 6, 5, 10, 0)
-    )
-    invoice.add_item(mud_bath_service, mud_bath_service.calculate_price())
-    invoice.add_item(massage_service, massage_service.calculate_price(discount_percent=10.0))
-    
-    # Вывести все объекты для демонстрации модели
-    print("=" * 60)
-    print("ПРИРОДНЫЙ ОЗДОРОВИТЕЛЬНЫЙ КУРОРТ - ДЕМОНСТРАЦИЯ ДОМЕННОЙ МОДЕЛИ")
-    print("=" * 60)
+    event1.add_participant(guest1)
+    event1_id = storage.create_event(event1)
+    print(f"✓ Создано событие ID={event1_id}: {event1}")
     print()
     
-    print("ГОСТЬ:")
-    print(guest)
-    print(f"  Контакты: {guest.contact}")
-    print(f"  Проживание: {guest.arrival_date.strftime('%Y-%m-%d')} до {guest.departure_date.strftime('%Y-%m-%d')}")
+    # ========== READ - Чтение сущностей ==========
+    print("=" * 70)
+    print("2. ЧТЕНИЕ СУЩНОСТЕЙ (READ)")
+    print("=" * 70)
     print()
     
-    print("СОТРУДНИК:")
-    print(staff)
-    print(f"  Специализации: {', '.join(staff.specializations)}")
+    # Получить гостя по ID
+    retrieved_guest = storage.get_guest_by_id(guest1_id)
+    print(f"✓ Получен гость по ID={guest1_id}: {retrieved_guest}")
     print()
     
-    print("МЕСТА:")
-    print(mud_bath_location)
-    print(massage_room)
-    print(f"  Может ли грязевая ванна вместить 3 человек? {mud_bath_location.can_accommodate(3)}")
+    # Получить список всех гостей
+    all_guests = storage.list_guests()
+    print(f"✓ Список всех гостей ({len(all_guests)} шт.):")
+    for guest in all_guests:
+        print(f"  - {guest}")
     print()
     
-    print("РЕСУРСЫ:")
-    print(therapeutic_mud)
-    print(herbs)
-    print(f"  Доступно ли 15 кг грязи? {therapeutic_mud.is_available(15.0)}")
+    # Получить список всех сотрудников
+    all_staff = storage.list_staff_members()
+    print(f"✓ Список всех сотрудников ({len(all_staff)} шт.):")
+    for staff in all_staff:
+        print(f"  - {staff}")
     print()
     
-    print("УСЛУГИ:")
-    print(mud_bath_service)
-    print(massage_service)
-    print(f"  Массаж со скидкой 10%: {massage_service.calculate_price(10.0)}")
+    # Получить список всех бронирований
+    all_bookings = storage.list_bookings()
+    print(f"✓ Список всех бронирований ({len(all_bookings)} шт.):")
+    for booking in all_bookings:
+        print(f"  - {booking}")
     print()
     
-    print("ВРЕМЕННЫЕ СЛОТЫ:")
-    print(morning_slot)
-    print(afternoon_slot)
-    print(f"  Длительность утреннего слота: {morning_slot.duration_minutes()} минут")
-    print(f"  Пересекаются ли слоты? {morning_slot.overlaps(afternoon_slot)}")
+    # Получить список всех счетов
+    all_invoices = storage.list_invoices()
+    print(f"✓ Список всех счетов ({len(all_invoices)} шт.):")
+    for invoice in all_invoices:
+        print(f"  - {invoice}")
     print()
     
-    print("БРОНИРОВАНИЯ:")
-    print(mud_bath_booking)
-    print(massage_booking)
-    print(f"  Бронирование грязевой ванны подтверждено? {mud_bath_booking.is_confirmed()}")
+    # ========== UPDATE - Обновление сущностей ==========
+    print("=" * 70)
+    print("3. ОБНОВЛЕНИЕ СУЩНОСТЕЙ (UPDATE)")
+    print("=" * 70)
     print()
     
-    print("СОБЫТИЕ:")
-    print(wellness_walk)
-    print(f"  Участников: {wellness_walk.participant_count()}")
+    # Обновить данные гостя
+    guest1.name = "Иван Петров (обновлено)"
+    updated = storage.update_guest(guest1_id, guest1)
+    if updated:
+        updated_guest = storage.get_guest_by_id(guest1_id)
+        print(f"✓ Обновлён гость ID={guest1_id}: {updated_guest}")
     print()
     
-    print("СЧЁТ:")
-    print(invoice)
-    print(f"  Общая сумма: {invoice.calculate_total()}")
+    # Обновить статус счёта
+    invoice1.mark_paid()
+    storage.update_invoice(invoice1_id, invoice1)
+    updated_invoice = storage.get_invoice_by_id(invoice1_id)
+    print(f"✓ Обновлён счёт ID={invoice1_id}: {updated_invoice}")
     print()
     
-    print("=" * 60)
-    print("Демонстрация успешно завершена!")
-    print("=" * 60)
+    # Обновить количество ресурса
+    resource1.quantity = 450.0  # Потратили 50 кг
+    storage.update_resource(resource1_id, resource1)
+    updated_resource = storage.get_resource_by_id(resource1_id)
+    print(f"✓ Обновлён ресурс ID={resource1_id}: {updated_resource}")
+    print()
+    
+    # ========== DELETE - Удаление сущностей ==========
+    print("=" * 70)
+    print("4. УДАЛЕНИЕ СУЩНОСТЕЙ (DELETE)")
+    print("=" * 70)
+    print()
+    
+    # Удалить бронирование
+    deleted = storage.delete_booking(booking2_id)
+    if deleted:
+        print(f"✓ Удалено бронирование ID={booking2_id}")
+        remaining_bookings = storage.list_bookings()
+        print(f"  Осталось бронирований: {len(remaining_bookings)}")
+    print()
+    
+    # Удалить ресурс
+    deleted = storage.delete_resource(resource2_id)
+    if deleted:
+        print(f"✓ Удалён ресурс ID={resource2_id}")
+        remaining_resources = storage.list_resources()
+        print(f"  Осталось ресурсов: {len(remaining_resources)}")
+    print()
+    
+    # Попытка удалить несуществующую сущность
+    deleted = storage.delete_guest(999)
+    if not deleted:
+        print(f"✓ Попытка удалить несуществующего гостя ID=999: не найдено")
+    print()
+    
+    # ========== Итоговая статистика ==========
+    print("=" * 70)
+    print("5. ИТОГОВАЯ СТАТИСТИКА")
+    print("=" * 70)
+    print()
+    print(f"Гостей в хранилище: {len(storage.list_guests())}")
+    print(f"Сотрудников в хранилище: {len(storage.list_staff_members())}")
+    print(f"Мест в хранилище: {len(storage.list_locations())}")
+    print(f"Ресурсов в хранилище: {len(storage.list_resources())}")
+    print(f"Услуг в хранилище: {len(storage.list_services())}")
+    print(f"Бронирований в хранилище: {len(storage.list_bookings())}")
+    print(f"Счетов в хранилище: {len(storage.list_invoices())}")
+    print(f"Событий в хранилище: {len(storage.list_events())}")
+    print()
+    
+    print("=" * 70)
+    print("Демонстрация CRUD операций успешно завершена!")
+    print("=" * 70)
 
 
 if __name__ == "__main__":
