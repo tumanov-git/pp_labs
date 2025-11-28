@@ -5,7 +5,6 @@ from roman_checker import (
     is_valid_roman,
     _extract_text_from_html,
     _iter_roman,
-    _validate_url,
     _normalize_url,
     _read_url
 )
@@ -260,57 +259,57 @@ class TestIterRoman:
 
 
 class TestValidateUrl:
-    """Тесты для функции _validate_url()"""
+    """Тесты проверки валидности URL через _normalize_url()"""
+
+    @staticmethod
+    def _is_valid(url: str) -> bool:
+        return bool(_normalize_url(url))
 
     def test_valid_http_url(self):
         """Тест валидного HTTP URL"""
-        assert _validate_url("http://example.com") is True
+        assert self._is_valid("http://example.com") is True
 
     def test_valid_https_url(self):
         """Тест валидного HTTPS URL"""
-        assert _validate_url("https://example.com") is True
+        assert self._is_valid("https://example.com") is True
 
     def test_valid_url_with_path(self):
         """Тест валидного URL с путём"""
-        assert _validate_url("https://example.com/path/to/page") is True
+        assert self._is_valid("https://example.com/path/to/page") is True
 
     def test_valid_url_with_query(self):
         """Тест валидного URL с параметрами"""
-        assert _validate_url("https://example.com/page?param=value") is True
+        assert self._is_valid("https://example.com/page?param=value") is True
 
     def test_valid_url_with_port(self):
         """Тест валидного URL с портом"""
-        assert _validate_url("http://example.com:8080") is True
+        assert self._is_valid("http://example.com:8080") is True
 
     def test_no_scheme_auto_added(self):
         """Тест автоматического добавления схемы"""
-        assert _validate_url("example.com") is True
+        assert self._is_valid("example.com") is True
 
     def test_invalid_no_domain(self):
         """Тест URL без домена"""
-        assert _validate_url("https://") is False
+        assert self._is_valid("https://") is False
 
     def test_invalid_empty_string(self):
         """Тест пустой строки"""
-        assert _validate_url("") is False
+        assert self._is_valid("") is False
 
     def test_invalid_not_url(self):
         """Тест не-URL строки"""
-        assert _validate_url("not-a-url") is False
-        assert _validate_url("just text") is False
+        assert self._is_valid("not-a-url") is False
+        assert self._is_valid("just text") is False
 
     def test_invalid_ftp_url(self):
-        """Тест FTP URL (может быть невалидным в зависимости от требований)"""
-        # FTP имеет схему и домен, так что технически валиден
-        assert _validate_url("ftp://example.com") is True
+        """FTP URL теперь невалиден"""
+        assert self._is_valid("ftp://example.com") is False
 
     def test_urlparse_exception_handled(self):
-        """Тест обработки исключения urlparse"""
-        # Создаём ситуацию, которая может вызвать исключение
-        # В реальности urlparse редко выбрасывает исключения, но ветка должна быть покрыта
-        # Проверяем, что функция возвращает False при любых проблемах
-        assert _validate_url("") is False  # Пустая строка
-        assert _validate_url("://") is False  # Некорректный формат
+        """Тест обработки некорректных строк"""
+        assert self._is_valid("") is False  # Пустая строка
+        assert self._is_valid("://") is False  # Некорректный формат
 
 
 class TestNormalizeUrl:

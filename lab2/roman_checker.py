@@ -16,14 +16,16 @@ HOSTNAME_PATTERN = re.compile(
     r"(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}",
     re.IGNORECASE,
 )
-ALLOWED_SCHEMES = {"http", "https", "ftp"}
+ALLOWED_SCHEMES = {"http", "https"}
 
 
 def is_valid_roman(value: str) -> bool:
+    """Возвращает True, если строка — корректное римское число (без учёта регистра)."""
     return bool(ROMAN_PATTERN.fullmatch(value.strip().upper()))
 
 
 def _extract_text_from_html(html: str) -> str:
+    """Удаляет теги без текста и возвращает очищенный текст."""
     soup = BeautifulSoup(html, "html.parser")
     for script in soup(["script", "style", "meta", "link", "noscript"]):
         script.decompose()
@@ -31,6 +33,7 @@ def _extract_text_from_html(html: str) -> str:
 
 
 def _iter_roman(text: str) -> Iterable[str]:
+    """Генерирует римские числа в верхнем регистре, отбрасывая невалидные совпадения."""
     if not text:
         return
     upper_text = text.upper()
@@ -41,6 +44,7 @@ def _iter_roman(text: str) -> Iterable[str]:
 
 
 def _is_valid_hostname(hostname: str) -> bool:
+    """Возвращает True для корректных доменов, IP-адресов или localhost."""
     if not hostname:
         return False
     if hostname == "localhost":
@@ -56,6 +60,7 @@ def _is_valid_hostname(hostname: str) -> bool:
 
 
 def _normalize_url(url: str) -> str:
+    """Возвращает нормализованный HTTPS/HTTP URL либо пустую строку при ошибке."""
     raw = (url or "").strip()
     if not raw:
         return ""
@@ -79,21 +84,25 @@ def _normalize_url(url: str) -> str:
     return parsed.geturl()
 
 
-def _validate_url(url: str) -> bool:
-    return bool(_normalize_url(url))
-
-
 def _read_url(url: str) -> str:
+    """Загружает страницу, валидирует ошибки и возвращает очищенный текст."""
     normalized = _normalize_url(url)
     if not normalized:
         raise ValueError("Некорректный URL")
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/120.0.0.0 Safari/537.36"
+        ),
+        "Accept": (
+            "text/html,application/xhtml+xml,application/xml;q=0.9,"
+            "image/webp,*/*;q=0.8"
+        ),
         "Accept-Language": "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7",
         "Accept-Encoding": "gzip, deflate, br",
         "Connection": "keep-alive",
-        "Upgrade-Insecure-Requests": "1"
+        "Upgrade-Insecure-Requests": "1",
     }
     try:
         response = requests.get(normalized, headers=headers, timeout=10, allow_redirects=True)
@@ -113,6 +122,7 @@ def _read_url(url: str) -> str:
 
 
 def _read_file(path: Path) -> str:
+    """Читает и возвращает содержимое локального файла."""
     return path.read_text(encoding="utf-8")
 
 
