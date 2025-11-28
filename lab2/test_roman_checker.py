@@ -6,6 +6,7 @@ from roman_checker import (
     _extract_text_from_html,
     _iter_roman,
     _validate_url,
+    _normalize_url,
     _read_url
 )
 
@@ -281,9 +282,9 @@ class TestValidateUrl:
         """Тест валидного URL с портом"""
         assert _validate_url("http://example.com:8080") is True
 
-    def test_invalid_no_scheme(self):
-        """Тест URL без схемы"""
-        assert _validate_url("example.com") is False
+    def test_no_scheme_auto_added(self):
+        """Тест автоматического добавления схемы"""
+        assert _validate_url("example.com") is True
 
     def test_invalid_no_domain(self):
         """Тест URL без домена"""
@@ -310,6 +311,34 @@ class TestValidateUrl:
         # Проверяем, что функция возвращает False при любых проблемах
         assert _validate_url("") is False  # Пустая строка
         assert _validate_url("://") is False  # Некорректный формат
+
+
+class TestNormalizeUrl:
+    """Тесты для функции _normalize_url()"""
+
+    def test_adds_https_when_missing(self):
+        """Добавление схемы при отсутствии"""
+        assert _normalize_url("example.com") == "https://example.com"
+
+    def test_preserves_existing_scheme(self):
+        """Схема не изменяется, если уже есть"""
+        assert _normalize_url("http://example.com") == "http://example.com"
+
+    def test_trims_whitespace(self):
+        """Пробелы по краям удаляются"""
+        assert _normalize_url("   ya.ru  ") == "https://ya.ru"
+
+    def test_invalid_without_domain(self):
+        """Отсутствие домена возвращает пустую строку"""
+        assert _normalize_url("https://") == ""
+
+    def test_empty_input(self):
+        """Пустая строка"""
+        assert _normalize_url("") == ""
+
+    def test_invalid_format(self):
+        """Некорректный формат"""
+        assert _normalize_url("://broken") == ""
 
 
 class TestReadUrl:
@@ -447,4 +476,18 @@ class TestReadUrl:
 
         with pytest.raises(requests.HTTPError):
             _read_url("https://example.com")
+
+    @patch('roman_checker.requests.get')
+    def test_url_without_scheme_normalized(self, mock_get):
+        """URL без схемы нормализуется перед запросом"""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.text = "<html><body>I</body></html>"
+        mock_response.apparent_encoding = "utf-8"
+        mock_response.raise_for_status = Mock()
+        mock_get.return_value = mock_response
+
+        _read_url("example.com")
+        called_url = mock_get.call_args[0][0]
+        assert called_url == "https://example.com"
 

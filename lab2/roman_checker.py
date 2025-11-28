@@ -1,3 +1,4 @@
+import ipaddress
 import re
 import sys
 from pathlib import Path
@@ -11,6 +12,11 @@ ROMAN_PATTERN = re.compile(
     r"(XC|XL|L?X{0,3})"
     r"(IX|IV|V?I{0,3})\b"
 )
+HOSTNAME_PATTERN = re.compile(
+    r"(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}",
+    re.IGNORECASE,
+)
+ALLOWED_SCHEMES = {"http", "https", "ftp"}
 
 
 def is_valid_roman(value: str) -> bool:
@@ -25,22 +31,61 @@ def _extract_text_from_html(html: str) -> str:
 
 
 def _iter_roman(text: str) -> Iterable[str]:
-    for match in ROMAN_PATTERN.finditer(text.upper()):
-        value = match.group().strip()
+    if not text:
+        return
+    upper_text = text.upper()
+    for match in ROMAN_PATTERN.finditer(upper_text):
+        value = match.group(0)
         if value and is_valid_roman(value):
             yield value
 
 
-def _validate_url(url: str) -> bool:
-    try:
-        result = urlparse(url)
-        return all([result.scheme, result.netloc])
-    except Exception:
+def _is_valid_hostname(hostname: str) -> bool:
+    if not hostname:
         return False
+    if hostname == "localhost":
+        return True
+    try:
+        ipaddress.ip_address(hostname)
+        return True
+    except ValueError:
+        pass
+    if not HOSTNAME_PATTERN.fullmatch(hostname):
+        return False
+    return "." in hostname
+
+
+def _normalize_url(url: str) -> str:
+    raw = (url or "").strip()
+    if not raw:
+        return ""
+    try:
+        parsed = urlparse(raw)
+    except ValueError:
+        return ""
+    if not parsed.scheme:
+        raw = f"https://{raw}"
+        try:
+            parsed = urlparse(raw)
+        except ValueError:
+            return ""
+    if parsed.scheme.lower() not in ALLOWED_SCHEMES:
+        return ""
+    if not parsed.netloc:
+        return ""
+    hostname = parsed.hostname or ""
+    if not _is_valid_hostname(hostname):
+        return ""
+    return parsed.geturl()
+
+
+def _validate_url(url: str) -> bool:
+    return bool(_normalize_url(url))
 
 
 def _read_url(url: str) -> str:
-    if not _validate_url(url):
+    normalized = _normalize_url(url)
+    if not normalized:
         raise ValueError("Некорректный URL")
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -51,7 +96,7 @@ def _read_url(url: str) -> str:
         "Upgrade-Insecure-Requests": "1"
     }
     try:
-        response = requests.get(url, headers=headers, timeout=10, allow_redirects=True)
+        response = requests.get(normalized, headers=headers, timeout=10, allow_redirects=True)
         response.raise_for_status()
     except requests.HTTPError as e:
         if response.status_code == 401:
