@@ -1,6 +1,6 @@
 """
-Слой хранения для курорта.
-Предоставляет CRUD-операции и простую сериализацию доменной модели.
+Слой хранения данных курорта.
+Предоставляет CRUD-операции и сериализацию доменной модели в JSON и XML.
 """
 
 import json
@@ -12,12 +12,10 @@ from exceptions import EntityNotFoundError, StorageError, ValidationError
 from models import (
     Booking,
     ContactInfo,
-    Event,
     Guest,
     Invoice,
     Location,
     Money,
-    Resource,
     Service,
     StaffMember,
     TimeSlot,
@@ -158,28 +156,6 @@ def _location_from_dict(data: Dict[str, Any]) -> Location:
     return location
 
 
-def _resource_to_dict(resource: Resource) -> Dict[str, Any]:
-    """Преобразовать Resource в словарь."""
-    return {
-        "resource_id": resource.resource_id,
-        "name": resource.name,
-        "resource_type": resource.resource_type,
-        "quantity": resource.quantity,
-        "unit": resource.unit,
-    }
-
-
-def _resource_from_dict(data: Dict[str, Any]) -> Resource:
-    """Создать Resource из словаря."""
-    return Resource(
-        resource_id=data.get("resource_id", ""),
-        name=data.get("name", ""),
-        resource_type=data.get("resource_type", ""),
-        quantity=float(data.get("quantity", 0.0)),
-        unit=data.get("unit", ""),
-    )
-
-
 def _service_to_dict(service: Service) -> Dict[str, Any]:
     """Преобразовать Service в словарь."""
     return {
@@ -189,10 +165,6 @@ def _service_to_dict(service: Service) -> Dict[str, Any]:
         "base_price": _money_to_dict(service.base_price),
         "duration_minutes": service.duration_minutes,
         "description": service.description,
-        "required_resources": [
-            {"resource_id": resource_id, "amount": amount}
-            for resource_id, amount in service.required_resources
-        ],
     }
 
 
@@ -206,11 +178,6 @@ def _service_from_dict(data: Dict[str, Any]) -> Service:
         duration_minutes=int(data.get("duration_minutes", 0)),
     )
     service.description = data.get("description")
-    for resource in data.get("required_resources", []):
-        service.add_required_resource(
-            resource_id=resource.get("resource_id", ""),
-            amount=float(resource.get("amount", 0.0)),
-        )
     return service
 
 
@@ -224,19 +191,6 @@ def _booking_to_dict(booking: Booking) -> Dict[str, Any]:
         "staff_id": booking.staff_member.staff_id if booking.staff_member else None,
         "time_slot": _timeslot_to_dict(booking.time_slot),
         "status": booking.status,
-    }
-
-
-def _event_to_dict(event: Event) -> Dict[str, Any]:
-    """Преобразовать Event в словарь."""
-    return {
-        "event_id": event.event_id,
-        "name": event.name,
-        "event_type": event.event_type,
-        "time_slot": _timeslot_to_dict(event.time_slot),
-        "location_id": event.location.location_id,
-        "participants": [guest.guest_id for guest in event.participants],
-        "description": event.description,
     }
 
 
@@ -292,28 +246,7 @@ def _booking_from_dict(
     return booking
 
 
-def _event_from_dict(
-    data: Dict[str, Any],
-    guests: Dict[str, Guest],
-    locations: Dict[str, Location],
-) -> Event:
-    """Создать Event из словаря."""
-    location_id = data.get("location_id")
-    if not location_id or location_id not in locations:
-        raise KeyError("location_id")
-    location = locations[location_id]
-    event = Event(
-        event_id=data.get("event_id", ""),
-        name=data.get("name", ""),
-        event_type=data.get("event_type", ""),
-        time_slot=_timeslot_from_dict(data.get("time_slot", {})),
-        location=location,
-    )
-    event.description = data.get("description")
-    for guest_id in data.get("participants", []):
-        if guest_id in guests:
-            event.add_participant(guests[guest_id])
-    return event
+ 
 
 
 def _invoice_from_dict(
@@ -373,66 +306,50 @@ def _xml_to_data(element: ET.Element) -> Any:
 
 
 class ResortStorage:
-    """Хранилище сущностей курорта в памяти."""
+    """Хранилище сущностей курорта в памяти.
+    
+    Использует строковые доменные ID (например, G001) как ключи.
+    """
     
     def __init__(self):
-        """Инициализировать хранилище с пустыми словарями для каждой сущности."""
-        self._guests: Dict[int, Guest] = {}
-        self._staff_members: Dict[int, StaffMember] = {}
-        self._services: Dict[int, Service] = {}
-        self._locations: Dict[int, Location] = {}
-        self._resources: Dict[int, Resource] = {}
-        self._bookings: Dict[int, Booking] = {}
-        self._invoices: Dict[int, Invoice] = {}
-        self._events: Dict[int, Event] = {}
-        
-        # Счётчики для генерации ID
-        self._next_guest_id: int = 1
-        self._next_staff_id: int = 1
-        self._next_service_id: int = 1
-        self._next_location_id: int = 1
-        self._next_resource_id: int = 1
-        self._next_booking_id: int = 1
-        self._next_invoice_id: int = 1
-        self._next_event_id: int = 1
+        """Инициализировать пустые коллекции для всех типов сущностей."""
+        self._guests: Dict[str, Guest] = {}
+        self._staff_members: Dict[str, StaffMember] = {}
+        self._services: Dict[str, Service] = {}
+        self._locations: Dict[str, Location] = {}
+        self._bookings: Dict[str, Booking] = {}
+        self._invoices: Dict[str, Invoice] = {}
+ 
     
     def clear_all(self) -> None:
-        """Полностью очистить хранилище и сбросить счётчики."""
+        """Полностью очистить хранилище."""
         self._guests.clear()
         self._staff_members.clear()
         self._services.clear()
         self._locations.clear()
-        self._resources.clear()
         self._bookings.clear()
         self._invoices.clear()
-        self._events.clear()
-        
-        self._next_guest_id = 1
-        self._next_staff_id = 1
-        self._next_service_id = 1
-        self._next_location_id = 1
-        self._next_resource_id = 1
-        self._next_booking_id = 1
-        self._next_invoice_id = 1
-        self._next_event_id = 1
+ 
     
     # ========== CRUD для Guest ==========
     
-    def create_guest(self, guest: Guest) -> int:
+    def create_guest(self, guest: Guest) -> str:
         """Создать нового гостя в хранилище.
         
         Args:
             guest: Объект гостя для создания
             
         Returns:
-            Целочисленный ID созданного гостя
+            Строковый ID созданного гостя
         """
-        guest_id = self._next_guest_id
-        self._next_guest_id += 1
-        self._guests[guest_id] = guest
-        return guest_id
+        if not guest.guest_id:
+            raise ValidationError("guest_id не может быть пустым")
+        if guest.guest_id in self._guests:
+            raise ValidationError(f"Гость с ID='{guest.guest_id}' уже существует")
+        self._guests[guest.guest_id] = guest
+        return guest.guest_id
     
-    def get_guest_by_id(self, guest_id: int) -> Guest:
+    def get_guest_by_id(self, guest_id: str) -> Guest:
         """Получить гостя по ID.
         
         Args:
@@ -445,7 +362,7 @@ class ResortStorage:
             EntityNotFoundError: Если гость с указанным ID не найден
         """
         if guest_id not in self._guests:
-            raise EntityNotFoundError(f"Гость с ID={guest_id} не найден")
+            raise EntityNotFoundError(f"Гость с ID='{guest_id}' не найден")
         return self._guests[guest_id]
     
     def list_guests(self) -> List[Guest]:
@@ -456,7 +373,7 @@ class ResortStorage:
         """
         return list(self._guests.values())
     
-    def update_guest(self, guest_id: int, guest: Guest) -> None:
+    def update_guest(self, guest_id: str, guest: Guest) -> None:
         """Обновить данные гостя.
         
         Args:
@@ -467,10 +384,10 @@ class ResortStorage:
             EntityNotFoundError: Если гость с указанным ID не найден
         """
         if guest_id not in self._guests:
-            raise EntityNotFoundError(f"Гость с ID={guest_id} не найден")
+            raise EntityNotFoundError(f"Гость с ID='{guest_id}' не найден")
         self._guests[guest_id] = guest
     
-    def delete_guest(self, guest_id: int) -> None:
+    def delete_guest(self, guest_id: str) -> None:
         """Удалить гостя из хранилища.
         
         Args:
@@ -480,26 +397,28 @@ class ResortStorage:
             EntityNotFoundError: Если гость с указанным ID не найден
         """
         if guest_id not in self._guests:
-            raise EntityNotFoundError(f"Гость с ID={guest_id} не найден")
+            raise EntityNotFoundError(f"Гость с ID='{guest_id}' не найден")
         del self._guests[guest_id]
     
     # ========== CRUD для StaffMember ==========
     
-    def create_staff_member(self, staff: StaffMember) -> int:
+    def create_staff_member(self, staff: StaffMember) -> str:
         """Создать нового сотрудника в хранилище.
         
         Args:
             staff: Объект сотрудника для создания
             
         Returns:
-            Целочисленный ID созданного сотрудника
+            Строковый ID созданного сотрудника
         """
-        staff_id = self._next_staff_id
-        self._next_staff_id += 1
-        self._staff_members[staff_id] = staff
-        return staff_id
+        if not staff.staff_id:
+            raise ValidationError("staff_id не может быть пустым")
+        if staff.staff_id in self._staff_members:
+            raise ValidationError(f"Сотрудник с ID='{staff.staff_id}' уже существует")
+        self._staff_members[staff.staff_id] = staff
+        return staff.staff_id
     
-    def get_staff_member_by_id(self, staff_id: int) -> StaffMember:
+    def get_staff_member_by_id(self, staff_id: str) -> StaffMember:
         """Получить сотрудника по ID.
         
         Args:
@@ -512,7 +431,7 @@ class ResortStorage:
             EntityNotFoundError: Если сотрудник с указанным ID не найден
         """
         if staff_id not in self._staff_members:
-            raise EntityNotFoundError(f"Сотрудник с ID={staff_id} не найден")
+            raise EntityNotFoundError(f"Сотрудник с ID='{staff_id}' не найден")
         return self._staff_members[staff_id]
     
     def list_staff_members(self) -> List[StaffMember]:
@@ -523,7 +442,7 @@ class ResortStorage:
         """
         return list(self._staff_members.values())
     
-    def update_staff_member(self, staff_id: int, staff: StaffMember) -> None:
+    def update_staff_member(self, staff_id: str, staff: StaffMember) -> None:
         """Обновить данные сотрудника.
         
         Args:
@@ -534,10 +453,10 @@ class ResortStorage:
             EntityNotFoundError: Если сотрудник с указанным ID не найден
         """
         if staff_id not in self._staff_members:
-            raise EntityNotFoundError(f"Сотрудник с ID={staff_id} не найден")
+            raise EntityNotFoundError(f"Сотрудник с ID='{staff_id}' не найден")
         self._staff_members[staff_id] = staff
     
-    def delete_staff_member(self, staff_id: int) -> None:
+    def delete_staff_member(self, staff_id: str) -> None:
         """Удалить сотрудника из хранилища.
         
         Args:
@@ -547,19 +466,19 @@ class ResortStorage:
             EntityNotFoundError: Если сотрудник с указанным ID не найден
         """
         if staff_id not in self._staff_members:
-            raise EntityNotFoundError(f"Сотрудник с ID={staff_id} не найден")
+            raise EntityNotFoundError(f"Сотрудник с ID='{staff_id}' не найден")
         del self._staff_members[staff_id]
     
     # ========== CRUD для Service ==========
     
-    def create_service(self, service: Service) -> int:
+    def create_service(self, service: Service) -> str:
         """Создать новую услугу в хранилище.
         
         Args:
             service: Объект услуги для создания
             
         Returns:
-            Целочисленный ID созданной услуги
+            Строковый ID созданной услуги
             
         Raises:
             ValidationError: Если цена услуги отрицательная или длительность <= 0
@@ -568,12 +487,14 @@ class ResortStorage:
             raise ValidationError(f"Цена услуги не может быть отрицательной, получено: {service.base_price.amount}")
         if service.duration_minutes <= 0:
             raise ValidationError(f"Длительность услуги должна быть положительной, получено: {service.duration_minutes}")
-        service_id = self._next_service_id
-        self._next_service_id += 1
-        self._services[service_id] = service
-        return service_id
+        if not service.service_id:
+            raise ValidationError("service_id не может быть пустым")
+        if service.service_id in self._services:
+            raise ValidationError(f"Услуга с ID='{service.service_id}' уже существует")
+        self._services[service.service_id] = service
+        return service.service_id
     
-    def get_service_by_id(self, service_id: int) -> Service:
+    def get_service_by_id(self, service_id: str) -> Service:
         """Получить услугу по ID.
         
         Args:
@@ -586,7 +507,7 @@ class ResortStorage:
             EntityNotFoundError: Если услуга с указанным ID не найдена
         """
         if service_id not in self._services:
-            raise EntityNotFoundError(f"Услуга с ID={service_id} не найдена")
+            raise EntityNotFoundError(f"Услуга с ID='{service_id}' не найдена")
         return self._services[service_id]
     
     def list_services(self) -> List[Service]:
@@ -597,7 +518,7 @@ class ResortStorage:
         """
         return list(self._services.values())
     
-    def update_service(self, service_id: int, service: Service) -> None:
+    def update_service(self, service_id: str, service: Service) -> None:
         """Обновить данные услуги.
         
         Args:
@@ -609,14 +530,14 @@ class ResortStorage:
             ValidationError: Если цена услуги отрицательная или длительность <= 0
         """
         if service_id not in self._services:
-            raise EntityNotFoundError(f"Услуга с ID={service_id} не найдена")
+            raise EntityNotFoundError(f"Услуга с ID='{service_id}' не найдена")
         if service.base_price.amount < 0:
             raise ValidationError(f"Цена услуги не может быть отрицательной, получено: {service.base_price.amount}")
         if service.duration_minutes <= 0:
             raise ValidationError(f"Длительность услуги должна быть положительной, получено: {service.duration_minutes}")
         self._services[service_id] = service
     
-    def delete_service(self, service_id: int) -> None:
+    def delete_service(self, service_id: str) -> None:
         """Удалить услугу из хранилища.
         
         Args:
@@ -626,31 +547,33 @@ class ResortStorage:
             EntityNotFoundError: Если услуга с указанным ID не найдена
         """
         if service_id not in self._services:
-            raise EntityNotFoundError(f"Услуга с ID={service_id} не найдена")
+            raise EntityNotFoundError(f"Услуга с ID='{service_id}' не найдена")
         del self._services[service_id]
     
     # ========== CRUD для Location ==========
     
-    def create_location(self, location: Location) -> int:
+    def create_location(self, location: Location) -> str:
         """Создать новое место в хранилище.
         
         Args:
             location: Объект места для создания
             
         Returns:
-            Целочисленный ID созданного места
+            Строковый ID созданного места
             
         Raises:
             ValidationError: Если вместимость отрицательная или равна нулю
         """
         if location.capacity <= 0:
             raise ValidationError(f"Вместимость места должна быть положительной, получено: {location.capacity}")
-        location_id = self._next_location_id
-        self._next_location_id += 1
-        self._locations[location_id] = location
-        return location_id
+        if not location.location_id:
+            raise ValidationError("location_id не может быть пустым")
+        if location.location_id in self._locations:
+            raise ValidationError(f"Место с ID='{location.location_id}' уже существует")
+        self._locations[location.location_id] = location
+        return location.location_id
     
-    def get_location_by_id(self, location_id: int) -> Location:
+    def get_location_by_id(self, location_id: str) -> Location:
         """Получить место по ID.
         
         Args:
@@ -663,7 +586,7 @@ class ResortStorage:
             EntityNotFoundError: Если место с указанным ID не найдено
         """
         if location_id not in self._locations:
-            raise EntityNotFoundError(f"Место с ID={location_id} не найдено")
+            raise EntityNotFoundError(f"Место с ID='{location_id}' не найдено")
         return self._locations[location_id]
     
     def list_locations(self) -> List[Location]:
@@ -674,7 +597,7 @@ class ResortStorage:
         """
         return list(self._locations.values())
     
-    def update_location(self, location_id: int, location: Location) -> None:
+    def update_location(self, location_id: str, location: Location) -> None:
         """Обновить данные места.
         
         Args:
@@ -686,12 +609,12 @@ class ResortStorage:
             ValidationError: Если вместимость отрицательная или равна нулю
         """
         if location_id not in self._locations:
-            raise EntityNotFoundError(f"Место с ID={location_id} не найдено")
+            raise EntityNotFoundError(f"Место с ID='{location_id}' не найдено")
         if location.capacity <= 0:
             raise ValidationError(f"Вместимость места должна быть положительной, получено: {location.capacity}")
         self._locations[location_id] = location
     
-    def delete_location(self, location_id: int) -> None:
+    def delete_location(self, location_id: str) -> None:
         """Удалить место из хранилища.
         
         Args:
@@ -701,101 +624,28 @@ class ResortStorage:
             EntityNotFoundError: Если место с указанным ID не найдено
         """
         if location_id not in self._locations:
-            raise EntityNotFoundError(f"Место с ID={location_id} не найдено")
+            raise EntityNotFoundError(f"Место с ID='{location_id}' не найдено")
         del self._locations[location_id]
-    
-    # ========== CRUD для Resource ==========
-    
-    def create_resource(self, resource: Resource) -> int:
-        """Создать новый ресурс в хранилище.
-        
-        Args:
-            resource: Объект ресурса для создания
-            
-        Returns:
-            Целочисленный ID созданного ресурса
-            
-        Raises:
-            ValidationError: Если количество ресурса отрицательное
-        """
-        if resource.quantity < 0:
-            raise ValidationError(f"Количество ресурса не может быть отрицательным, получено: {resource.quantity}")
-        resource_id = self._next_resource_id
-        self._next_resource_id += 1
-        self._resources[resource_id] = resource
-        return resource_id
-    
-    def get_resource_by_id(self, resource_id: int) -> Resource:
-        """Получить ресурс по ID.
-        
-        Args:
-            resource_id: ID ресурса
-            
-        Returns:
-            Объект ресурса
-            
-        Raises:
-            EntityNotFoundError: Если ресурс с указанным ID не найден
-        """
-        if resource_id not in self._resources:
-            raise EntityNotFoundError(f"Ресурс с ID={resource_id} не найден")
-        return self._resources[resource_id]
-    
-    def list_resources(self) -> List[Resource]:
-        """Получить список всех ресурсов.
-        
-        Returns:
-            Список всех ресурсов
-        """
-        return list(self._resources.values())
-    
-    def update_resource(self, resource_id: int, resource: Resource) -> None:
-        """Обновить данные ресурса.
-        
-        Args:
-            resource_id: ID ресурса для обновления
-            resource: Обновлённый объект ресурса
-            
-        Raises:
-            EntityNotFoundError: Если ресурс с указанным ID не найден
-            ValidationError: Если количество ресурса отрицательное
-        """
-        if resource_id not in self._resources:
-            raise EntityNotFoundError(f"Ресурс с ID={resource_id} не найден")
-        if resource.quantity < 0:
-            raise ValidationError(f"Количество ресурса не может быть отрицательным, получено: {resource.quantity}")
-        self._resources[resource_id] = resource
-    
-    def delete_resource(self, resource_id: int) -> None:
-        """Удалить ресурс из хранилища.
-        
-        Args:
-            resource_id: ID ресурса для удаления
-            
-        Raises:
-            EntityNotFoundError: Если ресурс с указанным ID не найден
-        """
-        if resource_id not in self._resources:
-            raise EntityNotFoundError(f"Ресурс с ID={resource_id} не найден")
-        del self._resources[resource_id]
     
     # ========== CRUD для Booking ==========
     
-    def create_booking(self, booking: Booking) -> int:
+    def create_booking(self, booking: Booking) -> str:
         """Создать новое бронирование в хранилище.
         
         Args:
             booking: Объект бронирования для создания
             
         Returns:
-            Целочисленный ID созданного бронирования
+            Строковый ID созданного бронирования
         """
-        booking_id = self._next_booking_id
-        self._next_booking_id += 1
-        self._bookings[booking_id] = booking
-        return booking_id
+        if not booking.booking_id:
+            raise ValidationError("booking_id не может быть пустым")
+        if booking.booking_id in self._bookings:
+            raise ValidationError(f"Бронирование с ID='{booking.booking_id}' уже существует")
+        self._bookings[booking.booking_id] = booking
+        return booking.booking_id
     
-    def get_booking_by_id(self, booking_id: int) -> Booking:
+    def get_booking_by_id(self, booking_id: str) -> Booking:
         """Получить бронирование по ID.
         
         Args:
@@ -808,7 +658,7 @@ class ResortStorage:
             EntityNotFoundError: Если бронирование с указанным ID не найдено
         """
         if booking_id not in self._bookings:
-            raise EntityNotFoundError(f"Бронирование с ID={booking_id} не найдено")
+            raise EntityNotFoundError(f"Бронирование с ID='{booking_id}' не найдено")
         return self._bookings[booking_id]
     
     def list_bookings(self) -> List[Booking]:
@@ -819,7 +669,7 @@ class ResortStorage:
         """
         return list(self._bookings.values())
     
-    def update_booking(self, booking_id: int, booking: Booking) -> None:
+    def update_booking(self, booking_id: str, booking: Booking) -> None:
         """Обновить данные бронирования.
         
         Args:
@@ -830,10 +680,10 @@ class ResortStorage:
             EntityNotFoundError: Если бронирование с указанным ID не найдено
         """
         if booking_id not in self._bookings:
-            raise EntityNotFoundError(f"Бронирование с ID={booking_id} не найдено")
+            raise EntityNotFoundError(f"Бронирование с ID='{booking_id}' не найдено")
         self._bookings[booking_id] = booking
     
-    def delete_booking(self, booking_id: int) -> None:
+    def delete_booking(self, booking_id: str) -> None:
         """Удалить бронирование из хранилища.
         
         Args:
@@ -843,26 +693,28 @@ class ResortStorage:
             EntityNotFoundError: Если бронирование с указанным ID не найдено
         """
         if booking_id not in self._bookings:
-            raise EntityNotFoundError(f"Бронирование с ID={booking_id} не найдено")
+            raise EntityNotFoundError(f"Бронирование с ID='{booking_id}' не найдено")
         del self._bookings[booking_id]
     
     # ========== CRUD для Invoice ==========
     
-    def create_invoice(self, invoice: Invoice) -> int:
+    def create_invoice(self, invoice: Invoice) -> str:
         """Создать новый счёт в хранилище.
         
         Args:
             invoice: Объект счёта для создания
             
         Returns:
-            Целочисленный ID созданного счёта
+            Строковый ID созданного счёта
         """
-        invoice_id = self._next_invoice_id
-        self._next_invoice_id += 1
-        self._invoices[invoice_id] = invoice
-        return invoice_id
+        if not invoice.invoice_id:
+            raise ValidationError("invoice_id не может быть пустым")
+        if invoice.invoice_id in self._invoices:
+            raise ValidationError(f"Счёт с ID='{invoice.invoice_id}' уже существует")
+        self._invoices[invoice.invoice_id] = invoice
+        return invoice.invoice_id
     
-    def get_invoice_by_id(self, invoice_id: int) -> Invoice:
+    def get_invoice_by_id(self, invoice_id: str) -> Invoice:
         """Получить счёт по ID.
         
         Args:
@@ -875,7 +727,7 @@ class ResortStorage:
             EntityNotFoundError: Если счёт с указанным ID не найден
         """
         if invoice_id not in self._invoices:
-            raise EntityNotFoundError(f"Счёт с ID={invoice_id} не найден")
+            raise EntityNotFoundError(f"Счёт с ID='{invoice_id}' не найден")
         return self._invoices[invoice_id]
     
     def list_invoices(self) -> List[Invoice]:
@@ -886,7 +738,7 @@ class ResortStorage:
         """
         return list(self._invoices.values())
     
-    def update_invoice(self, invoice_id: int, invoice: Invoice) -> None:
+    def update_invoice(self, invoice_id: str, invoice: Invoice) -> None:
         """Обновить данные счёта.
         
         Args:
@@ -897,10 +749,10 @@ class ResortStorage:
             EntityNotFoundError: Если счёт с указанным ID не найден
         """
         if invoice_id not in self._invoices:
-            raise EntityNotFoundError(f"Счёт с ID={invoice_id} не найден")
+            raise EntityNotFoundError(f"Счёт с ID='{invoice_id}' не найден")
         self._invoices[invoice_id] = invoice
     
-    def delete_invoice(self, invoice_id: int) -> None:
+    def delete_invoice(self, invoice_id: str) -> None:
         """Удалить счёт из хранилища.
         
         Args:
@@ -910,75 +762,10 @@ class ResortStorage:
             EntityNotFoundError: Если счёт с указанным ID не найден
         """
         if invoice_id not in self._invoices:
-            raise EntityNotFoundError(f"Счёт с ID={invoice_id} не найден")
+            raise EntityNotFoundError(f"Счёт с ID='{invoice_id}' не найден")
         del self._invoices[invoice_id]
     
-    # ========== CRUD для Event ==========
-    
-    def create_event(self, event: Event) -> int:
-        """Создать новое событие в хранилище.
-        
-        Args:
-            event: Объект события для создания
-            
-        Returns:
-            Целочисленный ID созданного события
-        """
-        event_id = self._next_event_id
-        self._next_event_id += 1
-        self._events[event_id] = event
-        return event_id
-    
-    def get_event_by_id(self, event_id: int) -> Event:
-        """Получить событие по ID.
-        
-        Args:
-            event_id: ID события
-            
-        Returns:
-            Объект события
-            
-        Raises:
-            EntityNotFoundError: Если событие с указанным ID не найдено
-        """
-        if event_id not in self._events:
-            raise EntityNotFoundError(f"Событие с ID={event_id} не найдено")
-        return self._events[event_id]
-    
-    def list_events(self) -> List[Event]:
-        """Получить список всех событий.
-        
-        Returns:
-            Список всех событий
-        """
-        return list(self._events.values())
-    
-    def update_event(self, event_id: int, event: Event) -> None:
-        """Обновить данные события.
-        
-        Args:
-            event_id: ID события для обновления
-            event: Обновлённый объект события
-            
-        Raises:
-            EntityNotFoundError: Если событие с указанным ID не найдено
-        """
-        if event_id not in self._events:
-            raise EntityNotFoundError(f"Событие с ID={event_id} не найдено")
-        self._events[event_id] = event
-    
-    def delete_event(self, event_id: int) -> None:
-        """Удалить событие из хранилища.
-        
-        Args:
-            event_id: ID события для удаления
-            
-        Raises:
-            EntityNotFoundError: Если событие с указанным ID не найдено
-        """
-        if event_id not in self._events:
-            raise EntityNotFoundError(f"Событие с ID={event_id} не найдено")
-        del self._events[event_id]
+    # (Секция Event удалена)
 
     # ========== СЕРИАЛИЗАЦИЯ ==========
 
@@ -1089,10 +876,6 @@ class ResortStorage:
                 _location_to_dict(location)
                 for location in self._locations.values()
             ],
-            "resources": [
-                _resource_to_dict(resource)
-                for resource in self._resources.values()
-            ],
             "bookings": [
                 _booking_to_dict(booking)
                 for booking in self._bookings.values()
@@ -1101,10 +884,7 @@ class ResortStorage:
                 _invoice_to_dict(invoice)
                 for invoice in self._invoices.values()
             ],
-            "events": [
-                _event_to_dict(event)
-                for event in self._events.values()
-            ],
+        
         }
 
     def _load_serializable_data(self, data: Dict[str, Any]) -> None:
@@ -1114,47 +894,30 @@ class ResortStorage:
         guest_map: Dict[str, Guest] = {}
         for guest_data in data.get("guests", []):
             guest = _guest_from_dict(guest_data)
-            storage_id = self._next_guest_id
-            self._next_guest_id += 1
-            self._guests[storage_id] = guest
-            guest_map[guest.guest_id] = guest
-        self._next_guest_id = max(self._guests.keys(), default=0) + 1
+            if guest.guest_id:
+                self._guests[guest.guest_id] = guest
+                guest_map[guest.guest_id] = guest
 
         staff_map: Dict[str, StaffMember] = {}
         for staff_data in data.get("staff_members", []):
             staff = _staff_from_dict(staff_data)
-            storage_id = self._next_staff_id
-            self._next_staff_id += 1
-            self._staff_members[storage_id] = staff
-            staff_map[staff.staff_id] = staff
-        self._next_staff_id = max(self._staff_members.keys(), default=0) + 1
+            if staff.staff_id:
+                self._staff_members[staff.staff_id] = staff
+                staff_map[staff.staff_id] = staff
 
         location_map: Dict[str, Location] = {}
         for location_data in data.get("locations", []):
             location = _location_from_dict(location_data)
-            storage_id = self._next_location_id
-            self._next_location_id += 1
-            self._locations[storage_id] = location
-            location_map[location.location_id] = location
-        self._next_location_id = max(self._locations.keys(), default=0) + 1
-
-        resource_map: Dict[str, Resource] = {}
-        for resource_data in data.get("resources", []):
-            resource = _resource_from_dict(resource_data)
-            storage_id = self._next_resource_id
-            self._next_resource_id += 1
-            self._resources[storage_id] = resource
-            resource_map[resource.resource_id] = resource
-        self._next_resource_id = max(self._resources.keys(), default=0) + 1
+            if location.location_id:
+                self._locations[location.location_id] = location
+                location_map[location.location_id] = location
 
         service_map: Dict[str, Service] = {}
         for service_data in data.get("services", []):
             service = _service_from_dict(service_data)
-            storage_id = self._next_service_id
-            self._next_service_id += 1
-            self._services[storage_id] = service
-            service_map[service.service_id] = service
-        self._next_service_id = max(self._services.keys(), default=0) + 1
+            if service.service_id:
+                self._services[service.service_id] = service
+                service_map[service.service_id] = service
 
         for booking_data in data.get("bookings", []):
             try:
@@ -1167,10 +930,8 @@ class ResortStorage:
                 )
             except KeyError:
                 continue
-            storage_id = self._next_booking_id
-            self._next_booking_id += 1
-            self._bookings[storage_id] = booking
-        self._next_booking_id = max(self._bookings.keys(), default=0) + 1
+            if booking.booking_id:
+                self._bookings[booking.booking_id] = booking
 
         for invoice_data in data.get("invoices", []):
             if not invoice_data.get("guest_id"):
@@ -1180,22 +941,8 @@ class ResortStorage:
                 guests=guest_map,
                 services=service_map,
             )
-            storage_id = self._next_invoice_id
-            self._next_invoice_id += 1
-            self._invoices[storage_id] = invoice
-        self._next_invoice_id = max(self._invoices.keys(), default=0) + 1
+            if invoice.invoice_id:
+                self._invoices[invoice.invoice_id] = invoice
 
-        for event_data in data.get("events", []):
-            location_id = event_data.get("location_id")
-            if not location_id or location_id not in location_map:
-                continue
-            event = _event_from_dict(
-                event_data,
-                guests=guest_map,
-                locations=location_map,
-            )
-            storage_id = self._next_event_id
-            self._next_event_id += 1
-            self._events[storage_id] = event
-        self._next_event_id = max(self._events.keys(), default=0) + 1
+        # Секция events исключена
 

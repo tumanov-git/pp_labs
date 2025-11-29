@@ -1,6 +1,6 @@
 """
-Доменная модель природного оздоровительного курорта в болотной зоне.
-Содержит все основные классы для управления гостями, персоналом, услугами и бронированиями.
+Доменная модель курорта.
+Содержит основные классы: гости, персонал, услуги, бронирования, события и счета.
 """
 
 from datetime import datetime, time
@@ -20,14 +20,14 @@ class ContactInfo:
 
 
 class Money:
-    """Представляет денежные суммы в системе."""
+    """Денежная сумма с валютой."""
     
     def __init__(self, amount: float, currency: str = "RUB"):
         self.amount: float = amount
         self.currency: str = currency
     
     def add(self, other: 'Money') -> 'Money':
-        """Добавить другой объект Money к этому."""
+        """Сложить суммы в одной валюте."""
         if self.currency != other.currency:
             raise ValueError("Нельзя складывать разные валюты")
         return Money(self.amount + other.amount, self.currency)
@@ -75,7 +75,7 @@ class StaffMember:
 
 
 class Location:
-    """Представляет физическое место на курорте."""
+    """Физическое место (кабинет, ванна, тропа и т.д.)."""
     
     def __init__(self, location_id: str, name: str, capacity: int, location_type: str):
         self.location_id: str = location_id
@@ -92,40 +92,15 @@ class Location:
         return f"Место(id={self.location_id}, название={self.name}, вместимость={self.capacity})"
 
 
-class Resource:
-    """Представляет ресурс, используемый на курорте (грязь, растительные материалы, расходники)."""
-    
-    def __init__(self, resource_id: str, name: str, resource_type: str, quantity: float, unit: str):
-        self.resource_id: str = resource_id
-        self.name: str = name
-        self.resource_type: str = resource_type  # например: "грязь", "травы", "расходники"
-        self.quantity: float = quantity
-        self.unit: str = unit  # например: "кг", "литры", "штуки"
-    
-    def consume(self, amount: float) -> bool:
-        """Потребить указанное количество ресурса. Возвращает True при успехе."""
-        if amount <= self.quantity:
-            self.quantity -= amount
-            return True
-        return False
-    
-    def is_available(self, required_amount: float) -> bool:
-        """Проверить, достаточно ли ресурса доступно."""
-        return self.quantity >= required_amount
-    
-    def __str__(self) -> str:
-        return f"Ресурс(id={self.resource_id}, название={self.name}, количество={self.quantity} {self.unit})"
-
-
 class TimeSlot:
-    """Представляет временной слот для планирования услуг."""
+    """Временной интервал для планирования услуг."""
     
     def __init__(self, start_time: datetime, end_time: datetime):
         self.start_time: datetime = start_time
         self.end_time: datetime = end_time
     
     def overlaps(self, other: 'TimeSlot') -> bool:
-        """Проверить, пересекается ли этот временной слот с другим."""
+        """Проверить пересечение с другим интервалом."""
         return (self.start_time < other.end_time and self.end_time > other.start_time)
     
     def duration_minutes(self) -> int:
@@ -138,7 +113,7 @@ class TimeSlot:
 
 
 class Service:
-    """Представляет услугу, предлагаемую на курорте."""
+    """Услуга, предлагаемая на курорте."""
     
     def __init__(self, service_id: str, name: str, service_type: str, base_price: Money, duration_minutes: int):
         self.service_id: str = service_id
@@ -147,14 +122,9 @@ class Service:
         self.base_price: Money = base_price
         self.duration_minutes: int = duration_minutes
         self.description: Optional[str] = None
-        self.required_resources: List[tuple] = []  # Список кортежей (resource_id, amount)
-    
-    def add_required_resource(self, resource_id: str, amount: float) -> None:
-        """Добавить требуемый ресурс для этой услуги."""
-        self.required_resources.append((resource_id, amount))
     
     def calculate_price(self, discount_percent: float = 0.0) -> Money:
-        """Вычислить итоговую цену с опциональной скидкой."""
+        """Рассчитать итоговую цену с опциональной скидкой."""
         discount_amount = self.base_price.amount * (discount_percent / 100)
         final_amount = self.base_price.amount - discount_amount
         return Money(final_amount, self.base_price.currency)
@@ -164,7 +134,7 @@ class Service:
 
 
 class Booking:
-    """Представляет бронирование услуги гостем."""
+    """Бронирование услуги гостем."""
     
     def __init__(self, booking_id: str, guest: Guest, service: Service, time_slot: TimeSlot, location: Location):
         self.booking_id: str = booking_id
@@ -173,10 +143,10 @@ class Booking:
         self.time_slot: TimeSlot = time_slot
         self.location: Location = location
         self.staff_member: Optional[StaffMember] = None
-        self.status: str = "ожидает"  # "ожидает", "подтверждено", "завершено", "отменено"
+        self.status: str = "ожидает"  # варианты: "ожидает", "подтверждено", "завершено", "отменено"
     
     def assign_staff(self, staff: StaffMember) -> None:
-        """Назначить сотрудника на это бронирование."""
+        """Назначить сотрудника на бронирование."""
         self.staff_member = staff
         self.status = "подтверждено"
     
@@ -188,35 +158,8 @@ class Booking:
         return f"Бронирование(id={self.booking_id}, гость={self.guest.name}, услуга={self.service.name}, статус={self.status})"
 
 
-class Event:
-    """Представляет событие, происходящее на курорте."""
-    
-    def __init__(self, event_id: str, name: str, event_type: str, time_slot: TimeSlot, location: Location):
-        self.event_id: str = event_id
-        self.name: str = name
-        self.event_type: str = event_type  # например: "оздоровительная_программа", "групповая_прогулка", "мастер_класс"
-        self.time_slot: TimeSlot = time_slot
-        self.location: Location = location
-        self.participants: List[Guest] = []
-        self.description: Optional[str] = None
-    
-    def add_participant(self, guest: Guest) -> bool:
-        """Добавить участника к событию. Возвращает True при успехе."""
-        if len(self.participants) < self.location.capacity:
-            self.participants.append(guest)
-            return True
-        return False
-    
-    def participant_count(self) -> int:
-        """Получить количество участников."""
-        return len(self.participants)
-    
-    def __str__(self) -> str:
-        return f"Событие(id={self.event_id}, название={self.name}, участников={self.participant_count()})"
-
-
 class Invoice:
-    """Представляет счёт за услуги, предоставленные гостю."""
+    """Счёт за оказанные услуги гостю."""
     
     def __init__(self, invoice_id: str, guest: Guest, issue_date: datetime):
         self.invoice_id: str = invoice_id
@@ -226,11 +169,11 @@ class Invoice:
         self.status: str = "не_оплачен"  # "не_оплачен", "оплачен", "отменён"
     
     def add_item(self, service: Service, price: Money) -> None:
-        """Добавить позицию услуги в счёт."""
+        """Добавить позицию в счёт."""
         self.items.append((service, price))
     
     def calculate_total(self) -> Money:
-        """Вычислить общую сумму счёта."""
+        """Рассчитать общую сумму счёта."""
         if not self.items:
             return Money(0.0)
         

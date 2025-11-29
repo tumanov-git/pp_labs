@@ -62,13 +62,7 @@
         "currency": "RUB"
       },
       "duration_minutes": 60,
-      "description": null,
-      "required_resources": [
-        {
-          "resource_id": "R001",
-          "amount": 10.0
-        }
-      ]
+      "description": null
     },
     {
       "service_id": "SRV002",
@@ -79,8 +73,7 @@
         "currency": "RUB"
       },
       "duration_minutes": 45,
-      "description": null,
-      "required_resources": []
+      "description": null
     }
   ],
   "locations": [
@@ -104,15 +97,6 @@
       "capacity": 15,
       "location_type": "тропа",
       "description": null
-    }
-  ],
-  "resources": [
-    {
-      "resource_id": "R001",
-      "name": "Лечебная болотная грязь",
-      "resource_type": "грязь",
-      "quantity": 450.0,
-      "unit": "кг"
     }
   ],
   "bookings": [
@@ -151,22 +135,6 @@
         }
       ],
       "status": "оплачен"
-    }
-  ],
-  "events": [
-    {
-      "event_id": "E001",
-      "name": "Утренняя оздоровительная прогулка",
-      "event_type": "групповая_прогулка",
-      "time_slot": {
-        "start_time": "2024-06-03T08:00:00",
-        "end_time": "2024-06-03T09:00:00"
-      },
-      "location_id": "L003",
-      "participants": [
-        "G001"
-      ],
-      "description": null
     }
   ]
 }

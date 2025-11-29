@@ -10,11 +10,9 @@ from models import (
     Guest,
     StaffMember,
     Location,
-    Resource,
     TimeSlot,
     Service,
     Booking,
-    Event,
     Invoice
 )
 from storage import ResortStorage
@@ -131,27 +129,7 @@ def main():
     print(f"✓ Создано место ID={location3_id}: {location3}")
     print()
     
-    # Создать ресурсы
-    resource1 = Resource(
-        resource_id="R001",
-        name="Лечебная болотная грязь",
-        resource_type="грязь",
-        quantity=500.0,
-        unit="кг"
-    )
-    resource1_id = storage.create_resource(resource1)
-    print(f"✓ Создан ресурс ID={resource1_id}: {resource1}")
-    
-    resource2 = Resource(
-        resource_id="R002",
-        name="Коллекция болотных трав",
-        resource_type="травы",
-        quantity=100.0,
-        unit="кг"
-    )
-    resource2_id = storage.create_resource(resource2)
-    print(f"✓ Создан ресурс ID={resource2_id}: {resource2}")
-    print()
+    # (Ресурсы удалены из предметной области)
     
     # Создать услуги
     service1 = Service(
@@ -161,7 +139,6 @@ def main():
         base_price=Money(2500.0, "RUB"),
         duration_minutes=60
     )
-    service1.add_required_resource("R001", 10.0)
     service1_id = storage.create_service(service1)
     print(f"✓ Создана услуга ID={service1_id}: {service1}")
     
@@ -218,21 +195,7 @@ def main():
     print(f"✓ Создан счёт ID={invoice1_id}: {invoice1}")
     print()
     
-    # Создать событие
-    event1 = Event(
-        event_id="E001",
-        name="Утренняя оздоровительная прогулка",
-        event_type="групповая_прогулка",
-        time_slot=TimeSlot(
-            start_time=datetime(2024, 6, 3, 8, 0),
-            end_time=datetime(2024, 6, 3, 9, 0)
-        ),
-        location=location3
-    )
-    event1.add_participant(guest1)
-    event1_id = storage.create_event(event1)
-    print(f"✓ Создано событие ID={event1_id}: {event1}")
-    print()
+    # (События удалены из предметной области)
     
     # ========== READ - Чтение сущностей ==========
     print("=" * 70)
@@ -302,15 +265,7 @@ def main():
         print(f"✗ Ошибка обновления счёта: {e}")
     print()
     
-    # Обновить количество ресурса
-    try:
-        resource1.quantity = 450.0  # Потратили 50 кг
-        storage.update_resource(resource1_id, resource1)
-        updated_resource = storage.get_resource_by_id(resource1_id)
-        print(f"✓ Обновлён ресурс ID={resource1_id}: {updated_resource}")
-    except (EntityNotFoundError, ValidationError) as e:
-        print(f"✗ Ошибка обновления ресурса: {e}")
-    print()
+    # (Операции с ресурсами удалены)
     
     # ========== DELETE - Удаление сущностей ==========
     print("=" * 70)
@@ -328,15 +283,7 @@ def main():
         print(f"✗ Ошибка удаления бронирования: {e}")
     print()
     
-    # Удалить ресурс
-    try:
-        storage.delete_resource(resource2_id)
-        print(f"✓ Удалён ресурс ID={resource2_id}")
-        remaining_resources = storage.list_resources()
-        print(f"  Осталось ресурсов: {len(remaining_resources)}")
-    except EntityNotFoundError as e:
-        print(f"✗ Ошибка удаления ресурса: {e}")
-    print()
+    # (Удаление ресурсов исключено)
     
     # ========== Итоговая статистика ==========
     print("=" * 70)
@@ -346,11 +293,9 @@ def main():
     print(f"Гостей в хранилище: {len(storage.list_guests())}")
     print(f"Сотрудников в хранилище: {len(storage.list_staff_members())}")
     print(f"Мест в хранилище: {len(storage.list_locations())}")
-    print(f"Ресурсов в хранилище: {len(storage.list_resources())}")
     print(f"Услуг в хранилище: {len(storage.list_services())}")
     print(f"Бронирований в хранилище: {len(storage.list_bookings())}")
     print(f"Счетов в хранилище: {len(storage.list_invoices())}")
-    print(f"Событий в хранилище: {len(storage.list_events())}")
     print()
 
     print("=" * 70)
