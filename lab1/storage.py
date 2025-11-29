@@ -1,5 +1,5 @@
 """
-Слой хранения данных курорта.
+Хранение данных системы бронирования услуг курорта.
 Предоставляет CRUD-операции и сериализацию доменной модели в JSON и XML.
 """
 
@@ -466,9 +466,18 @@ class ResortStorage:
             
         Raises:
             EntityNotFoundError: Если сотрудник с указанным ID не найден
+            ValidationError: Если сотрудник используется в услугах или бронированиях
         """
         if staff_id not in self._staff_members:
             raise EntityNotFoundError(f"Сотрудник с ID='{staff_id}' не найден")
+        # Проверка использования в услугах
+        for service in self._services.values():
+            if service.staff_id == staff_id:
+                raise ValidationError(f"Сотрудник {staff_id} используется в услуге {service.service_id}")
+        # Проверка использования в бронированиях
+        for booking in self._bookings.values():
+            if booking.staff_member and booking.staff_member.staff_id == staff_id:
+                raise ValidationError(f"Сотрудник {staff_id} используется в бронировании {booking.booking_id}")
         del self._staff_members[staff_id]
     
     # ========== CRUD для Service ==========
@@ -552,9 +561,14 @@ class ResortStorage:
             
         Raises:
             EntityNotFoundError: Если услуга с указанным ID не найдена
+            ValidationError: Если услуга используется в бронированиях
         """
         if service_id not in self._services:
             raise EntityNotFoundError(f"Услуга с ID='{service_id}' не найдена")
+        # Проверка использования в бронированиях
+        for booking in self._bookings.values():
+            if booking.service.service_id == service_id:
+                raise ValidationError(f"Услуга {service_id} используется в бронировании {booking.booking_id}")
         del self._services[service_id]
     
     # ========== CRUD для Location ==========
@@ -625,9 +639,18 @@ class ResortStorage:
             
         Raises:
             EntityNotFoundError: Если место с указанным ID не найдено
+            ValidationError: Если место используется в услугах или бронированиях
         """
         if location_id not in self._locations:
             raise EntityNotFoundError(f"Место с ID='{location_id}' не найдено")
+        # Проверка использования в услугах
+        for service in self._services.values():
+            if service.location_id == location_id:
+                raise ValidationError(f"Место {location_id} используется в услуге {service.service_id}")
+        # Проверка использования в бронированиях
+        for booking in self._bookings.values():
+            if booking.location.location_id == location_id:
+                raise ValidationError(f"Место {location_id} используется в бронировании {booking.booking_id}")
         del self._locations[location_id]
     
     # ========== CRUD для Booking ==========
@@ -655,6 +678,9 @@ class ResortStorage:
             raise ValidationError("Место бронирования не совпадает с местом услуги")
         if booking.staff_member is None or booking.staff_member.staff_id != booking.service.staff_id:
             raise ValidationError("Сотрудник бронирования не совпадает с сотрудником услуги")
+        # Проверка, что сотрудник может выполнять эту услугу
+        if booking.staff_member and booking.service.service_id not in booking.staff_member.service_ids:
+            raise ValidationError(f"Сотрудник {booking.staff_member.staff_id} не может выполнять услугу {booking.service.service_id}")
         # Проверка занятости гостя, сотрудника и места
         for existing in self._bookings.values():
             if existing.time_slot.overlaps(booking.time_slot):
@@ -700,9 +726,32 @@ class ResortStorage:
             
         Raises:
             EntityNotFoundError: Если бронирование с указанным ID не найдено
+            ValidationError: Если данные бронирования невалидны
         """
         if booking_id not in self._bookings:
             raise EntityNotFoundError(f"Бронирование с ID='{booking_id}' не найдено")
+        # Валидация обновлённого бронирования (те же проверки, что и при создании)
+        if not booking.service.location_id:
+            raise ValidationError("Для услуги не назначено место")
+        if not booking.service.staff_id:
+            raise ValidationError("Для услуги не назначен сотрудник")
+        if booking.location.location_id != booking.service.location_id:
+            raise ValidationError("Место бронирования не совпадает с местом услуги")
+        if booking.staff_member is None or booking.staff_member.staff_id != booking.service.staff_id:
+            raise ValidationError("Сотрудник бронирования не совпадает с сотрудником услуги")
+        if booking.staff_member and booking.service.service_id not in booking.staff_member.service_ids:
+            raise ValidationError(f"Сотрудник {booking.staff_member.staff_id} не может выполнять услугу {booking.service.service_id}")
+        # Проверка занятости (исключая само обновляемое бронирование)
+        for existing_id, existing in self._bookings.items():
+            if existing_id == booking_id:  # Пропускаем само обновляемое бронирование
+                continue
+            if existing.time_slot.overlaps(booking.time_slot):
+                if existing.guest.guest_id == booking.guest.guest_id:
+                    raise ValidationError("Гость занят в это время")
+                if existing.staff_member and booking.staff_member and existing.staff_member.staff_id == booking.staff_member.staff_id:
+                    raise ValidationError("Сотрудник занят в это время")
+                if existing.location.location_id == booking.location.location_id:
+                    raise ValidationError("Место занято в это время")
         self._bookings[booking_id] = booking
     
     def delete_booking(self, booking_id: str) -> None:

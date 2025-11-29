@@ -358,9 +358,13 @@ def delete_staff(storage: ResortStorage) -> None:
             print(f"Вы действительно хотите удалить сотрудника: {staff}?")
             confirm = prompt("Введите 'y' для удаления, Enter для отмены: ", allow_exit=False)
             if confirm.lower() == "y":
-                storage.delete_staff_member(staff_id)
-                print("✓ Сотрудник удалён")
-                mark_dirty()
+                try:
+                    storage.delete_staff_member(staff_id)
+                    print("✓ Сотрудник удалён")
+                    mark_dirty()
+                except ValidationError as e:
+                    print(f"✗ Ошибка: {e}")
+                    print("Сначала удалите или измените связанные услуги и бронирования.")
             else:
                 print("Удаление отменено.")
             break
@@ -445,9 +449,13 @@ def delete_location(storage: ResortStorage) -> None:
             print(f"Вы действительно хотите удалить место: {loc}?")
             confirm = prompt("Введите 'y' для удаления, Enter для отмены: ", allow_exit=False)
             if confirm.lower() == "y":
-                storage.delete_location(location_id)
-                print("✓ Место удалено")
-                mark_dirty()
+                try:
+                    storage.delete_location(location_id)
+                    print("✓ Место удалено")
+                    mark_dirty()
+                except ValidationError as e:
+                    print(f"✗ Ошибка: {e}")
+                    print("Сначала удалите или измените связанные услуги и бронирования.")
             else:
                 print("Удаление отменено.")
             break
@@ -653,14 +661,18 @@ def delete_service_admin(storage: ResortStorage) -> None:
             print(f"Вы действительно хотите удалить услугу: {service}?")
             confirm = prompt("Введите 'y' для удаления, Enter для отмены: ", allow_exit=False)
             if confirm.lower() == "y":
-                # также уберём ссылку на услугу у сотрудников
-                for staff in storage.list_staff_members():
-                    if service_id in staff.service_ids:
-                        staff.service_ids.remove(service_id)
-                        storage.update_staff_member(staff.staff_id, staff)
-                storage.delete_service(service_id)
-                print("✓ Услуга удалена")
-                mark_dirty()
+                try:
+                    # также уберём ссылку на услугу у сотрудников
+                    for staff in storage.list_staff_members():
+                        if service_id in staff.service_ids:
+                            staff.service_ids.remove(service_id)
+                            storage.update_staff_member(staff.staff_id, staff)
+                    storage.delete_service(service_id)
+                    print("✓ Услуга удалена")
+                    mark_dirty()
+                except ValidationError as e:
+                    print(f"✗ Ошибка: {e}")
+                    print("Сначала удалите связанные бронирования.")
             else:
                 print("Удаление отменено.")
             break
@@ -858,9 +870,8 @@ def update_booking(storage: ResortStorage) -> None:
             )
             new_booking.assign_staff(staff)
 
-            # удаляем старое бронирование и создаём новое с тем же ID, чтобы пройти все проверки
-            storage.delete_booking(booking_id)
-            storage.create_booking(new_booking)
+            # Используем update_booking, который выполняет все необходимые проверки
+            storage.update_booking(booking_id, new_booking)
 
             print("✓ Бронирование обновлено")
             mark_dirty()
