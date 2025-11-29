@@ -1,6 +1,6 @@
 """
 Доменная модель курорта.
-Содержит основные классы: гости, персонал, услуги, бронирования, события и счета.
+Содержит основные классы: гости, персонал, услуги, бронирования и места.
 """
 
 from datetime import datetime, time
@@ -17,23 +17,6 @@ class ContactInfo:
     
     def __str__(self) -> str:
         return f"КонтактнаяИнформация(email={self.email}, телефон={self.phone})"
-
-
-class Money:
-    """Денежная сумма с валютой."""
-    
-    def __init__(self, amount: float, currency: str = "RUB"):
-        self.amount: float = amount
-        self.currency: str = currency
-    
-    def add(self, other: 'Money') -> 'Money':
-        """Сложить суммы в одной валюте."""
-        if self.currency != other.currency:
-            raise ValueError("Нельзя складывать разные валюты")
-        return Money(self.amount + other.amount, self.currency)
-    
-    def __str__(self) -> str:
-        return f"{self.amount:.2f} {self.currency}"
 
 
 class Guest:
@@ -58,38 +41,37 @@ class Guest:
 class StaffMember:
     """Представляет сотрудника, работающего на курорте."""
     
-    def __init__(self, staff_id: str, name: str, position: str, contact: ContactInfo):
+    def __init__(self, staff_id: str, name: str, role: str, contact: ContactInfo):
         self.staff_id: str = staff_id
         self.name: str = name
-        self.position: str = position
+        self.role: str = role
         self.contact: ContactInfo = contact
-        self.specializations: List[str] = []
+        self.service_ids: List[str] = []
     
-    def add_specialization(self, specialization: str) -> None:
-        """Добавить специализацию сотруднику."""
-        if specialization not in self.specializations:
-            self.specializations.append(specialization)
+    def assign_service(self, service_id: str) -> None:
+        """Привязать сотрудника к услуге по её ID."""
+        if service_id and service_id not in self.service_ids:
+            self.service_ids.append(service_id)
+    
+    def supports_service(self, service_id: str) -> bool:
+        """Проверить, может ли сотрудник оказывать услугу с указанным ID."""
+        return service_id in self.service_ids
     
     def __str__(self) -> str:
-        return f"Сотрудник(id={self.staff_id}, имя={self.name}, должность={self.position})"
+        return f"Сотрудник(id={self.staff_id}, имя={self.name}, роль={self.role})"
 
 
 class Location:
     """Физическое место (кабинет, ванна, тропа и т.д.)."""
     
-    def __init__(self, location_id: str, name: str, capacity: int, location_type: str):
+    def __init__(self, location_id: str, name: str, location_type: str):
         self.location_id: str = location_id
         self.name: str = name
-        self.capacity: int = capacity
         self.location_type: str = location_type  # например: "грязевая_ванна", "баня", "массажный_кабинет"
         self.description: Optional[str] = None
     
-    def can_accommodate(self, number_of_people: int) -> bool:
-        """Проверить, может ли место вместить указанное количество людей."""
-        return number_of_people <= self.capacity
-    
     def __str__(self) -> str:
-        return f"Место(id={self.location_id}, название={self.name}, вместимость={self.capacity})"
+        return f"Место(id={self.location_id}, название={self.name}, тип={self.location_type})"
 
 
 class TimeSlot:
@@ -115,22 +97,23 @@ class TimeSlot:
 class Service:
     """Услуга, предлагаемая на курорте."""
     
-    def __init__(self, service_id: str, name: str, service_type: str, base_price: Money, duration_minutes: int):
+    def __init__(self, service_id: str, name: str, service_type: str, duration_minutes: int):
         self.service_id: str = service_id
         self.name: str = name
         self.service_type: str = service_type  # например: "грязевая_ванна", "массаж", "прогулка", "баня"
-        self.base_price: Money = base_price
         self.duration_minutes: int = duration_minutes
         self.description: Optional[str] = None
+        self.location_id: Optional[str] = None
+        self.staff_id: Optional[str] = None
     
-    def calculate_price(self, discount_percent: float = 0.0) -> Money:
-        """Рассчитать итоговую цену с опциональной скидкой."""
-        discount_amount = self.base_price.amount * (discount_percent / 100)
-        final_amount = self.base_price.amount - discount_amount
-        return Money(final_amount, self.base_price.currency)
+    def assign_location(self, location_id: str) -> None:
+        self.location_id = location_id
+    
+    def assign_staff(self, staff_id: str) -> None:
+        self.staff_id = staff_id
     
     def __str__(self) -> str:
-        return f"Услуга(id={self.service_id}, название={self.name}, цена={self.base_price})"
+        return f"Услуга(id={self.service_id}, название={self.name}, длительность={self.duration_minutes} мин)"
 
 
 class Booking:
@@ -158,34 +141,5 @@ class Booking:
         return f"Бронирование(id={self.booking_id}, гость={self.guest.name}, услуга={self.service.name}, статус={self.status})"
 
 
-class Invoice:
-    """Счёт за оказанные услуги гостю."""
-    
-    def __init__(self, invoice_id: str, guest: Guest, issue_date: datetime):
-        self.invoice_id: str = invoice_id
-        self.guest: Guest = guest
-        self.issue_date: datetime = issue_date
-        self.items: List[tuple] = []  # Список кортежей (service, price)
-        self.status: str = "не_оплачен"  # "не_оплачен", "оплачен", "отменён"
-    
-    def add_item(self, service: Service, price: Money) -> None:
-        """Добавить позицию в счёт."""
-        self.items.append((service, price))
-    
-    def calculate_total(self) -> Money:
-        """Рассчитать общую сумму счёта."""
-        if not self.items:
-            return Money(0.0)
-        
-        total = Money(0.0, self.items[0][1].currency)
-        for _, price in self.items:
-            total = total.add(price)
-        return total
-    
-    def mark_paid(self) -> None:
-        """Отметить счёт как оплаченный."""
-        self.status = "оплачен"
-    
-    def __str__(self) -> str:
-        return f"Счёт(id={self.invoice_id}, гость={self.guest.name}, итого={self.calculate_total()}, статус={self.status})"
+ 
 

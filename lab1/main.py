@@ -4,16 +4,15 @@
 """
 
 from datetime import datetime, timedelta
+import os
 from models import (
     ContactInfo,
-    Money,
     Guest,
     StaffMember,
     Location,
     TimeSlot,
     Service,
-    Booking,
-    Invoice
+    Booking
 )
 from storage import ResortStorage
 from exceptions import EntityNotFoundError, ValidationError, StorageError
@@ -71,40 +70,12 @@ def main():
     print(f"✓ Создан гость ID={guest2_id}: {guest2}")
     print()
     
-    # Создать сотрудников
-    staff1 = StaffMember(
-        staff_id="S001",
-        name="Анна Волкова",
-        position="Массажист",
-        contact=ContactInfo(
-            email="annamassage@shrek.com",
-            phone="+7-900-987-65-43"
-        )
-    )
-    staff1.add_specialization("Шведский массаж")
-    staff1.add_specialization("Лечебный массаж")
-    staff1_id = storage.create_staff_member(staff1)
-    print(f"✓ Создан сотрудник ID={staff1_id}: {staff1}")
-    
-    staff2 = StaffMember(
-        staff_id="S002",
-        name="Пётр Грязев",
-        position="Специалист по грязевым ваннам",
-        contact=ContactInfo(
-            email="petrgryazev@shrek.com",
-            phone="+7-900-111-22-33"
-        )
-    )
-    staff2.add_specialization("Грязелечение")
-    staff2_id = storage.create_staff_member(staff2)
-    print(f"✓ Создан сотрудник ID={staff2_id}: {staff2}")
-    print()
+    # (Ресурсы удалены из предметной области)
     
     # Создать места
     location1 = Location(
         location_id="L001",
         name="Грязевая ванна №1",
-        capacity=2,
         location_type="грязевая_ванна"
     )
     location1_id = storage.create_location(location1)
@@ -113,7 +84,6 @@ def main():
     location2 = Location(
         location_id="L002",
         name="Массажный кабинет №3",
-        capacity=1,
         location_type="массажный_кабинет"
     )
     location2_id = storage.create_location(location2)
@@ -122,36 +92,67 @@ def main():
     location3 = Location(
         location_id="L003",
         name="Болотная тропа",
-        capacity=15,
         location_type="тропа"
     )
     location3_id = storage.create_location(location3)
     print(f"✓ Создано место ID={location3_id}: {location3}")
     print()
     
-    # (Ресурсы удалены из предметной области)
-    
     # Создать услуги
     service1 = Service(
         service_id="SRV001",
         name="Лечебная грязевая ванна",
         service_type="грязевая_ванна",
-        base_price=Money(2500.0, "RUB"),
         duration_minutes=60
     )
-    service1_id = storage.create_service(service1)
-    print(f"✓ Создана услуга ID={service1_id}: {service1}")
-    
+    # Привязать места к услугам (обязательное условие выполнения)
+    service1.assign_location("L001")
     service2 = Service(
         service_id="SRV002",
         name="Расслабляющий массаж",
         service_type="массаж",
-        base_price=Money(3000.0, "RUB"),
         duration_minutes=45
     )
+    service2.assign_location("L002")
+    service1_id = storage.create_service(service1)
+    print(f"✓ Создана услуга ID={service1_id}: {service1}")
     service2_id = storage.create_service(service2)
     print(f"✓ Создана услуга ID={service2_id}: {service2}")
     print()
+    
+    # Создать сотрудников (после создания услуг) и привязать к услугам
+    staff1 = StaffMember(
+        staff_id="S001",
+        name="Анна Волкова",
+        role="Массажист",
+        contact=ContactInfo(
+            email="annamassage@shrek.com",
+            phone="+7-900-987-65-43"
+        )
+    )
+    staff1.assign_service("SRV002")
+    staff1_id = storage.create_staff_member(staff1)
+    print(f"✓ Создан сотрудник ID={staff1_id}: {staff1}")
+    
+    staff2 = StaffMember(
+        staff_id="S002",
+        name="Пётр Грязев",
+        role="Специалист по грязевым ваннам",
+        contact=ContactInfo(
+            email="petrgryazev@shrek.com",
+            phone="+7-900-111-22-33"
+        )
+    )
+    staff2.assign_service("SRV001")
+    staff2_id = storage.create_staff_member(staff2)
+    print(f"✓ Создан сотрудник ID={staff2_id}: {staff2}")
+    print()
+    
+    # Назначить сотрудника для услуги и обновить услуги
+    service1.assign_staff("S002")
+    service2.assign_staff("S001")
+    storage.update_service("SRV001", service1)
+    storage.update_service("SRV002", service2)
     
     # Создать бронирования
     booking1 = Booking(
@@ -183,17 +184,7 @@ def main():
     print(f"✓ Создано бронирование ID={booking2_id}: {booking2}")
     print()
     
-    # Создать счёт
-    invoice1 = Invoice(
-        invoice_id="INV001",
-        guest=guest1,
-        issue_date=datetime(2024, 6, 5, 10, 0)
-    )
-    invoice1.add_item(service1, service1.calculate_price())
-    invoice1.add_item(service2, service2.calculate_price(discount_percent=10.0))
-    invoice1_id = storage.create_invoice(invoice1)
-    print(f"✓ Создан счёт ID={invoice1_id}: {invoice1}")
-    print()
+    # (Счета и деньги исключены из предметной области)
     
     # (События удалены из предметной области)
     
@@ -232,12 +223,7 @@ def main():
         print(f"  - {booking}")
     print()
     
-    # Получить список всех счетов
-    all_invoices = storage.list_invoices()
-    print(f"✓ Список всех счетов ({len(all_invoices)} шт.):")
-    for invoice in all_invoices:
-        print(f"  - {invoice}")
-    print()
+    # (Счета исключены)
     
     # ========== UPDATE - Обновление сущностей ==========
     print("=" * 70)
@@ -255,15 +241,7 @@ def main():
         print(f"✗ Ошибка обновления гостя: {e}")
     print()
     
-    # Обновить статус счёта
-    try:
-        invoice1.mark_paid()
-        storage.update_invoice(invoice1_id, invoice1)
-        updated_invoice = storage.get_invoice_by_id(invoice1_id)
-        print(f"✓ Обновлён счёт ID={invoice1_id}: {updated_invoice}")
-    except EntityNotFoundError as e:
-        print(f"✗ Ошибка обновления счёта: {e}")
-    print()
+    # (Счета исключены)
     
     # (Операции с ресурсами удалены)
     
@@ -295,7 +273,6 @@ def main():
     print(f"Мест в хранилище: {len(storage.list_locations())}")
     print(f"Услуг в хранилище: {len(storage.list_services())}")
     print(f"Бронирований в хранилище: {len(storage.list_bookings())}")
-    print(f"Счетов в хранилище: {len(storage.list_invoices())}")
     print()
 
     print("=" * 70)
@@ -303,8 +280,9 @@ def main():
     print("=" * 70)
     print()
 
-    json_path = "storage_data.json"
-    xml_path = "storage_data.xml"
+    base_dir = os.path.dirname(__file__)
+    json_path = os.path.join(base_dir, "storage_data.json")
+    xml_path = os.path.join(base_dir, "storage_data.xml")
     
     try:
         storage.save_to_json(json_path)
@@ -355,15 +333,14 @@ def main():
         print(f"  ✗ Ошибка: {e}")
     print()
     
-    # Попытка создать услугу с отрицательной ценой
-    print("Попытка создать услугу с отрицательной ценой:")
+    # Попытка создать услугу с некорректной длительностью
+    print("Попытка создать услугу с некорректной длительностью:")
     try:
         invalid_service = Service(
             service_id="SRV999",
             name="Невалидная услуга",
             service_type="тест",
-            base_price=Money(-100.0, "RUB"),
-            duration_minutes=30
+            duration_minutes=0
         )
         storage.create_service(invalid_service)
         print(f"  Услуга создана: {invalid_service}")
