@@ -36,38 +36,65 @@ def main():
     print()
     
     # Создать гостей
-    guest1_contact = ContactInfo(
-        email="ivanpetrov@shrek.com",
-        phone="+7-900-123-45-67",
-        address="Москва, Россия"
-    )
     guest1 = Guest(
         guest_id="G001",
         name="Иван Петров",
-        contact=guest1_contact
-    )
-    guest1.set_stay_dates(
-        arrival=datetime(2024, 6, 1, 14, 0),
-        departure=datetime(2024, 6, 5, 12, 0)
+        contact=ContactInfo(
+            email="ivanpetrov@shrek.com",
+            phone="+7-900-123-45-67",
+            address="Москва, Россия",
+        ),
     )
     guest1_id = storage.create_guest(guest1)
     print(f"✓ Создан гость ID={guest1_id}: {guest1}")
-    
+
     guest2 = Guest(
         guest_id="G002",
         name="Мария Сидорова",
         contact=ContactInfo(
             email="mariasidorova@shrek.com",
             phone="+7-900-555-77-88",
-            address="Санкт-Петербург, Россия"
-        )
-    )
-    guest2.set_stay_dates(
-        arrival=datetime(2024, 6, 3, 12, 0),
-        departure=datetime(2024, 6, 7, 11, 0)
+            address="Санкт-Петербург, Россия",
+        ),
     )
     guest2_id = storage.create_guest(guest2)
     print(f"✓ Создан гость ID={guest2_id}: {guest2}")
+
+    guest3 = Guest(
+        guest_id="G003",
+        name="Олег Морозов",
+        contact=ContactInfo(
+            email="oleg.morozov@shrek.com",
+            phone="+7-900-222-33-44",
+            address="Новосибирск, Россия",
+        ),
+    )
+    guest3_id = storage.create_guest(guest3)
+    print(f"✓ Создан гость ID={guest3_id}: {guest3}")
+
+    guest4 = Guest(
+        guest_id="G004",
+        name="Елена Лесная",
+        contact=ContactInfo(
+            email="elena.lesnaya@shrek.com",
+            phone="+7-900-333-44-55",
+            address="Екатеринбург, Россия",
+        ),
+    )
+    guest4_id = storage.create_guest(guest4)
+    print(f"✓ Создан гость ID={guest4_id}: {guest4}")
+
+    guest5 = Guest(
+        guest_id="G005",
+        name="Сергей Моржов",
+        contact=ContactInfo(
+            email="sergey.morzhov@shrek.com",
+            phone="+7-900-444-55-66",
+            address="Казань, Россия",
+        ),
+    )
+    guest5_id = storage.create_guest(guest5)
+    print(f"✓ Создан гость ID={guest5_id}: {guest5}")
     print()
     
     # (Ресурсы удалены из предметной области)
@@ -114,10 +141,28 @@ def main():
         duration_minutes=45
     )
     service2.assign_location("L002")
+    service3 = Service(
+        service_id="SRV003",
+        name="Прогулка по болотной тропе",
+        service_type="прогулка",
+        duration_minutes=90,
+    )
+    service3.assign_location("L003")
+    service4 = Service(
+        service_id="SRV004",
+        name="Ароматический массаж",
+        service_type="массаж",
+        duration_minutes=30,
+    )
+    service4.assign_location("L002")
     service1_id = storage.create_service(service1)
     print(f"✓ Создана услуга ID={service1_id}: {service1}")
     service2_id = storage.create_service(service2)
     print(f"✓ Создана услуга ID={service2_id}: {service2}")
+    service3_id = storage.create_service(service3)
+    print(f"✓ Создана услуга ID={service3_id}: {service3}")
+    service4_id = storage.create_service(service4)
+    print(f"✓ Создана услуга ID={service4_id}: {service4}")
     print()
     
     # Создать сотрудников (после создания услуг) и привязать к услугам
@@ -131,6 +176,7 @@ def main():
         )
     )
     staff1.assign_service("SRV002")
+    staff1.assign_service("SRV004")
     staff1_id = storage.create_staff_member(staff1)
     print(f"✓ Создан сотрудник ID={staff1_id}: {staff1}")
     
@@ -146,13 +192,30 @@ def main():
     staff2.assign_service("SRV001")
     staff2_id = storage.create_staff_member(staff2)
     print(f"✓ Создан сотрудник ID={staff2_id}: {staff2}")
+    
+    staff3 = StaffMember(
+        staff_id="S003",
+        name="Игорь Тропин",
+        role="Гид по болотной тропе",
+        contact=ContactInfo(
+            email="igor.tropin@shrek.com",
+            phone="+7-900-777-88-99"
+        )
+    )
+    staff3.assign_service("SRV003")
+    staff3_id = storage.create_staff_member(staff3)
+    print(f"✓ Создан сотрудник ID={staff3_id}: {staff3}")
     print()
     
     # Назначить сотрудника для услуги и обновить услуги
     service1.assign_staff("S002")
     service2.assign_staff("S001")
+    service3.assign_staff("S003")
+    service4.assign_staff("S001")
     storage.update_service("SRV001", service1)
     storage.update_service("SRV002", service2)
+    storage.update_service("SRV003", service3)
+    storage.update_service("SRV004", service4)
     
     # Создать бронирования
     booking1 = Booking(
@@ -182,6 +245,48 @@ def main():
     booking2.assign_staff(staff1)
     booking2_id = storage.create_booking(booking2)
     print(f"✓ Создано бронирование ID={booking2_id}: {booking2}")
+    
+    booking3 = Booking(
+        booking_id="B003",
+        guest=guest2,
+        service=service1,
+        time_slot=TimeSlot(
+            start_time=datetime(2024, 6, 2, 11, 30),
+            end_time=datetime(2024, 6, 2, 12, 30),
+        ),
+        location=location1,
+    )
+    booking3.assign_staff(staff2)
+    booking3_id = storage.create_booking(booking3)
+    print(f"✓ Создано бронирование ID={booking3_id}: {booking3}")
+
+    booking4 = Booking(
+        booking_id="B004",
+        guest=guest3,
+        service=service3,
+        time_slot=TimeSlot(
+            start_time=datetime(2024, 6, 2, 9, 0),
+            end_time=datetime(2024, 6, 2, 10, 30),
+        ),
+        location=location3,
+    )
+    booking4.assign_staff(staff3)
+    booking4_id = storage.create_booking(booking4)
+    print(f"✓ Создано бронирование ID={booking4_id}: {booking4}")
+
+    booking5 = Booking(
+        booking_id="B005",
+        guest=guest4,
+        service=service4,
+        time_slot=TimeSlot(
+            start_time=datetime(2024, 6, 2, 16, 0),
+            end_time=datetime(2024, 6, 2, 16, 30),
+        ),
+        location=location2,
+    )
+    booking5.assign_staff(staff1)
+    booking5_id = storage.create_booking(booking5)
+    print(f"✓ Создано бронирование ID={booking5_id}: {booking5}")
     print()
     
     # (Счета и деньги исключены из предметной области)
@@ -233,7 +338,7 @@ def main():
     
     # Обновить данные гостя
     try:
-        guest1.name = "Иван Петров (обновлено)"
+        guest1.name = "Иван Петрович"
         storage.update_guest(guest1_id, guest1)
         updated_guest = storage.get_guest_by_id(guest1_id)
         print(f"✓ Обновлён гость ID={guest1_id}: {updated_guest}")

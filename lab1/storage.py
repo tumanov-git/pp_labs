@@ -75,8 +75,6 @@ def _guest_to_dict(guest: Guest) -> Dict[str, Any]:
         "guest_id": guest.guest_id,
         "name": guest.name,
         "contact": _contact_to_dict(guest.contact),
-        "arrival_date": _datetime_to_str(guest.arrival_date),
-        "departure_date": _datetime_to_str(guest.departure_date),
     }
 
 
@@ -87,10 +85,6 @@ def _guest_from_dict(data: Dict[str, Any]) -> Guest:
         name=data.get("name", ""),
         contact=_contact_from_dict(data.get("contact", {})),
     )
-    arrival = _datetime_from_str(data.get("arrival_date"))
-    departure = _datetime_from_str(data.get("departure_date"))
-    if arrival and departure:
-        guest.set_stay_dates(arrival, departure)
     return guest
 
 
@@ -274,6 +268,12 @@ class ResortStorage:
         self._services: Dict[str, Service] = {}
         self._locations: Dict[str, Location] = {}
         self._bookings: Dict[str, Booking] = {}
+        # Счетчики для автоматической генерации ID
+        self._next_guest_id: int = 1
+        self._next_staff_id: int = 1
+        self._next_location_id: int = 1
+        self._next_service_id: int = 1
+        self._next_booking_id: int = 1
  
     
     def clear_all(self) -> None:
@@ -283,7 +283,60 @@ class ResortStorage:
         self._services.clear()
         self._locations.clear()
         self._bookings.clear()
+        # Сброс счетчиков ID
+        self._next_guest_id = 1
+        self._next_staff_id = 1
+        self._next_location_id = 1
+        self._next_service_id = 1
+        self._next_booking_id = 1
  
+    
+    # ========== Генерация ID ==========
+    
+    def generate_guest_id(self) -> str:
+        """Сгенерировать следующий ID для гостя."""
+        while True:
+            guest_id = f"G{self._next_guest_id:03d}"
+            if guest_id not in self._guests:
+                self._next_guest_id += 1
+                return guest_id
+            self._next_guest_id += 1
+    
+    def generate_staff_id(self) -> str:
+        """Сгенерировать следующий ID для сотрудника."""
+        while True:
+            staff_id = f"S{self._next_staff_id:03d}"
+            if staff_id not in self._staff_members:
+                self._next_staff_id += 1
+                return staff_id
+            self._next_staff_id += 1
+    
+    def generate_location_id(self) -> str:
+        """Сгенерировать следующий ID для места."""
+        while True:
+            location_id = f"L{self._next_location_id:03d}"
+            if location_id not in self._locations:
+                self._next_location_id += 1
+                return location_id
+            self._next_location_id += 1
+    
+    def generate_service_id(self) -> str:
+        """Сгенерировать следующий ID для услуги."""
+        while True:
+            service_id = f"SRV{self._next_service_id:03d}"
+            if service_id not in self._services:
+                self._next_service_id += 1
+                return service_id
+            self._next_service_id += 1
+    
+    def generate_booking_id(self) -> str:
+        """Сгенерировать следующий ID для бронирования."""
+        while True:
+            booking_id = f"B{self._next_booking_id:03d}"
+            if booking_id not in self._bookings:
+                self._next_booking_id += 1
+                return booking_id
+            self._next_booking_id += 1
     
     # ========== CRUD для Guest ==========
     
@@ -734,10 +787,15 @@ class ResortStorage:
             data = self._collect_serializable_data()
             root = ET.Element("resort_storage")
             for section_name, items in data.items():
-                section = ET.SubElement(root, section_name)
-                for item in items:
-                    item_element = ET.SubElement(section, "item")
-                    _dict_to_xml(item_element, item)
+                if section_name == "id_counters":
+                    # Специальная обработка для счетчиков ID
+                    counters_section = ET.SubElement(root, section_name)
+                    _dict_to_xml(counters_section, items)
+                else:
+                    section = ET.SubElement(root, section_name)
+                    for item in items:
+                        item_element = ET.SubElement(section, "item")
+                        _dict_to_xml(item_element, item)
             tree = ET.ElementTree(root)
             tree.write(path, encoding="utf-8", xml_declaration=True)
         except (IOError, OSError) as e:
@@ -755,12 +813,16 @@ class ResortStorage:
         try:
             tree = ET.parse(path)
             root = tree.getroot()
-            data: Dict[str, List[Any]] = {}
+            data: Dict[str, Any] = {}
             for section in root:
-                items: List[Any] = []
-                for item in section.findall("item"):
-                    items.append(_xml_to_data(item))
-                data[section.tag] = items
+                if section.tag == "id_counters":
+                    # Специальная обработка для счетчиков ID
+                    data[section.tag] = _xml_to_data(section)
+                else:
+                    items: List[Any] = []
+                    for item in section.findall("item"):
+                        items.append(_xml_to_data(item))
+                    data[section.tag] = items
             self._load_serializable_data(data)
         except FileNotFoundError:
             raise StorageError(f"Файл '{path}' не найден")
@@ -794,8 +856,13 @@ class ResortStorage:
                 _booking_to_dict(booking)
                 for booking in self._bookings.values()
             ],
-            
-        
+            "id_counters": {
+                "next_guest_id": self._next_guest_id,
+                "next_staff_id": self._next_staff_id,
+                "next_location_id": self._next_location_id,
+                "next_service_id": self._next_service_id,
+                "next_booking_id": self._next_booking_id,
+            }
         }
 
     def _load_serializable_data(self, data: Dict[str, Any]) -> None:
@@ -847,4 +914,60 @@ class ResortStorage:
         # Секция invoices исключена
 
         # Секция events исключена
+        
+        # Восстановление счетчиков ID
+        id_counters = data.get("id_counters", {})
+        if id_counters:
+            self._next_guest_id = id_counters.get("next_guest_id", 1)
+            self._next_staff_id = id_counters.get("next_staff_id", 1)
+            self._next_location_id = id_counters.get("next_location_id", 1)
+            self._next_service_id = id_counters.get("next_service_id", 1)
+            self._next_booking_id = id_counters.get("next_booking_id", 1)
+        else:
+            # Если счетчиков нет, вычисляем максимальные значения из существующих ID
+            self._update_id_counters_from_existing()
+    
+    def _update_id_counters_from_existing(self) -> None:
+        """Обновить счетчики ID на основе максимальных значений существующих ID."""
+        import re
+        
+        # Для гостей (G001, G002, ...)
+        max_guest = 0
+        for guest_id in self._guests.keys():
+            match = re.match(r"^G(\d+)$", guest_id)
+            if match:
+                max_guest = max(max_guest, int(match.group(1)))
+        self._next_guest_id = max_guest + 1
+        
+        # Для сотрудников (S001, S002, ...)
+        max_staff = 0
+        for staff_id in self._staff_members.keys():
+            match = re.match(r"^S(\d+)$", staff_id)
+            if match:
+                max_staff = max(max_staff, int(match.group(1)))
+        self._next_staff_id = max_staff + 1
+        
+        # Для мест (L001, L002, ...)
+        max_location = 0
+        for location_id in self._locations.keys():
+            match = re.match(r"^L(\d+)$", location_id)
+            if match:
+                max_location = max(max_location, int(match.group(1)))
+        self._next_location_id = max_location + 1
+        
+        # Для услуг (SRV001, SRV002, ...)
+        max_service = 0
+        for service_id in self._services.keys():
+            match = re.match(r"^SRV(\d+)$", service_id)
+            if match:
+                max_service = max(max_service, int(match.group(1)))
+        self._next_service_id = max_service + 1
+        
+        # Для бронирований (B001, B002, ...)
+        max_booking = 0
+        for booking_id in self._bookings.keys():
+            match = re.match(r"^B(\d+)$", booking_id)
+            if match:
+                max_booking = max(max_booking, int(match.group(1)))
+        self._next_booking_id = max_booking + 1
 

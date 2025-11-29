@@ -26,13 +26,6 @@ class Guest:
         self.guest_id: str = guest_id
         self.name: str = name
         self.contact: ContactInfo = contact
-        self.arrival_date: Optional[datetime] = None
-        self.departure_date: Optional[datetime] = None
-    
-    def set_stay_dates(self, arrival: datetime, departure: datetime) -> None:
-        """Установить даты прибытия и отъезда для гостя."""
-        self.arrival_date = arrival
-        self.departure_date = departure
     
     def __str__(self) -> str:
         return f"Гость(id={self.guest_id}, имя={self.name})"

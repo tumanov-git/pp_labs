@@ -2,14 +2,12 @@
   "guests": [
     {
       "guest_id": "G001",
-      "name": "Иван Петров (обновлено)",
+      "name": "Иван Петрович",
       "contact": {
         "email": "ivanpetrov@shrek.com",
         "phone": "+7-900-123-45-67",
         "address": "Москва, Россия"
-      },
-      "arrival_date": "2024-06-01T14:00:00",
-      "departure_date": "2024-06-05T12:00:00"
+      }
     },
     {
       "guest_id": "G002",
@@ -18,9 +16,34 @@
         "email": "mariasidorova@shrek.com",
         "phone": "+7-900-555-77-88",
         "address": "Санкт-Петербург, Россия"
-      },
-      "arrival_date": "2024-06-03T12:00:00",
-      "departure_date": "2024-06-07T11:00:00"
+      }
+    },
+    {
+      "guest_id": "G003",
+      "name": "Олег Морозов",
+      "contact": {
+        "email": "oleg.morozov@shrek.com",
+        "phone": "+7-900-222-33-44",
+        "address": "Новосибирск, Россия"
+      }
+    },
+    {
+      "guest_id": "G004",
+      "name": "Елена Лесная",
+      "contact": {
+        "email": "elena.lesnaya@shrek.com",
+        "phone": "+7-900-333-44-55",
+        "address": "Екатеринбург, Россия"
+      }
+    },
+    {
+      "guest_id": "G005",
+      "name": "Сергей Моржов",
+      "contact": {
+        "email": "sergey.morzhov@shrek.com",
+        "phone": "+7-900-444-55-66",
+        "address": "Казань, Россия"
+      }
     }
   ],
   "staff_members": [
@@ -34,7 +57,8 @@
         "address": null
       },
       "service_ids": [
-        "SRV002"
+        "SRV002",
+        "SRV004"
       ]
     },
     {
@@ -48,6 +72,19 @@
       },
       "service_ids": [
         "SRV001"
+      ]
+    },
+    {
+      "staff_id": "S003",
+      "name": "Игорь Тропин",
+      "role": "Гид по болотной тропе",
+      "contact": {
+        "email": "igor.tropin@shrek.com",
+        "phone": "+7-900-777-88-99",
+        "address": null
+      },
+      "service_ids": [
+        "SRV003"
       ]
     }
   ],
@@ -66,6 +103,24 @@
       "name": "Расслабляющий массаж",
       "service_type": "массаж",
       "duration_minutes": 45,
+      "description": null,
+      "location_id": "L002",
+      "staff_id": "S001"
+    },
+    {
+      "service_id": "SRV003",
+      "name": "Прогулка по болотной тропе",
+      "service_type": "прогулка",
+      "duration_minutes": 90,
+      "description": null,
+      "location_id": "L003",
+      "staff_id": "S003"
+    },
+    {
+      "service_id": "SRV004",
+      "name": "Ароматический массаж",
+      "service_type": "массаж",
+      "duration_minutes": 30,
       "description": null,
       "location_id": "L002",
       "staff_id": "S001"
@@ -103,6 +158,49 @@
         "end_time": "2024-06-02T11:00:00"
       },
       "status": "подтверждено"
+    },
+    {
+      "booking_id": "B003",
+      "guest_id": "G002",
+      "service_id": "SRV001",
+      "location_id": "L001",
+      "staff_id": "S002",
+      "time_slot": {
+        "start_time": "2024-06-02T11:30:00",
+        "end_time": "2024-06-02T12:30:00"
+      },
+      "status": "подтверждено"
+    },
+    {
+      "booking_id": "B004",
+      "guest_id": "G003",
+      "service_id": "SRV003",
+      "location_id": "L003",
+      "staff_id": "S003",
+      "time_slot": {
+        "start_time": "2024-06-02T09:00:00",
+        "end_time": "2024-06-02T10:30:00"
+      },
+      "status": "подтверждено"
+    },
+    {
+      "booking_id": "B005",
+      "guest_id": "G004",
+      "service_id": "SRV004",
+      "location_id": "L002",
+      "staff_id": "S001",
+      "time_slot": {
+        "start_time": "2024-06-02T16:00:00",
+        "end_time": "2024-06-02T16:30:00"
+      },
+      "status": "подтверждено"
     }
-  ]
+  ],
+  "id_counters": {
+    "next_guest_id": 1,
+    "next_staff_id": 1,
+    "next_location_id": 1,
+    "next_service_id": 1,
+    "next_booking_id": 1
+  }
 }
