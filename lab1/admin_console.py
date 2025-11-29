@@ -1,6 +1,5 @@
 from datetime import datetime
 from typing import Optional
-import os
 
 from exceptions import EntityNotFoundError, ValidationError, StorageError
 from models import ContactInfo, Guest, StaffMember, Location, Service, TimeSlot, Booking
@@ -84,17 +83,6 @@ def prompt_int(message: str, allow_exit: bool = True) -> int:
             return int(value)
         except ValueError:
             print("Введите целое число.")
-
-
-def prompt_float(message: str, allow_exit: bool = True) -> float:
-    while True:
-        value = input(message).strip()
-        if allow_exit and value.lower() in ("q", "exit", "выход", "отмена"):
-            raise MenuExit()
-        try:
-            return float(value)
-        except ValueError:
-            print("Введите число (можно с точкой).")
 
 
 def prompt_datetime(message: str, allow_exit: bool = True) -> datetime:
@@ -266,6 +254,17 @@ def create_staff(storage: ResortStorage) -> None:
             role = prompt_name("Роль (должность)")
             email = prompt_email()
             phone = prompt_phone()
+            
+            # Показываем доступные услуги
+            services = storage.list_services()
+            if services:
+                print("\nДоступные услуги для привязки:")
+                for srv in services:
+                    print(f"  - {srv.service_id}: {srv.name} ({srv.duration_minutes} мин)")
+            else:
+                print("\n⚠ Услуг пока нет. Сначала создайте услуги.")
+            print()
+            
             service_ids_str = prompt_optional("ID услуг для привязки (через запятую, опционально): ")
 
             contact = ContactInfo(email=email, phone=phone)
@@ -312,6 +311,17 @@ def update_staff(storage: ResortStorage) -> None:
             role = prompt_name("Новая роль (должность)")
             email = prompt_email()
             phone = prompt_phone()
+            
+            # Показываем доступные услуги
+            services = storage.list_services()
+            if services:
+                print("\nДоступные услуги для привязки:")
+                for srv in services:
+                    print(f"  - {srv.service_id}: {srv.name} ({srv.duration_minutes} мин)")
+            else:
+                print("\n⚠ Услуг пока нет. Сначала создайте услуги.")
+            print()
+            
             service_ids_str = prompt_optional("Новые ID услуг для привязки (через запятую, опционально): ")
 
             contact = ContactInfo(email=email, phone=phone)
@@ -366,15 +376,18 @@ def create_location(storage: ResortStorage) -> None:
         try:
             location_id = storage.generate_location_id()
             print(f"Автоматически сгенерирован ID: {location_id}")
+            
+            # Показываем существующие места для справки
+            existing_locations = storage.list_locations()
+            if existing_locations:
+                print("\nСуществующие места:")
+                for loc in existing_locations:
+                    print(f"  - {loc.location_id}: {loc.name}")
+                print()
+            
             name = prompt_name("Название")
-            location_type = prompt("Тип места (например, массажный_кабинет): ")
-            if not location_type:
-                print("✗ Тип места обязателен.")
-                continue
-            description = prompt_optional("Описание (опционально): ")
 
-            loc = Location(location_id=location_id, name=name, location_type=location_type)
-            loc.description = description
+            loc = Location(location_id=location_id, name=name)
             storage.create_location(loc)
             print("✓ Место создано")
             mark_dirty()
@@ -391,8 +404,9 @@ def list_locations(storage: ResortStorage) -> None:
     if not locations:
         print("Мест нет.")
         return
-    for l in locations:
-        print(f"- {l}")
+    for i, loc in enumerate(locations, 1):
+        print(f"\n{i}. Место ID={loc.location_id}")
+        print(f"   Название: {loc.name}")
 
 
 def update_location(storage: ResortStorage) -> None:
@@ -406,14 +420,8 @@ def update_location(storage: ResortStorage) -> None:
                 continue
             print(f"Текущее место: {loc}")
             name = prompt_name("Новое название")
-            location_type = prompt("Новый тип места (например, массажный_кабинет): ")
-            if not location_type:
-                print("✗ Тип места обязателен.")
-                continue
-            description = prompt_optional("Новое описание (опционально): ")
 
-            updated_loc = Location(location_id=location_id, name=name, location_type=location_type)
-            updated_loc.description = description
+            updated_loc = Location(location_id=location_id, name=name)
             storage.update_location(location_id, updated_loc)
             print("✓ Место обновлено")
             mark_dirty()
@@ -456,19 +464,37 @@ def create_service(storage: ResortStorage) -> None:
             service_id = storage.generate_service_id()
             print(f"Автоматически сгенерирован ID: {service_id}")
             name = prompt_name("Название услуги")
-            service_type = prompt("Тип услуги: ")
-            if not service_type:
-                print("✗ Тип услуги обязателен.")
-                continue
             duration = prompt_int("Длительность (мин): ")
             if duration <= 0:
                 print("✗ Длительность должна быть положительной.")
                 continue
-            description = prompt_optional("Описание (опционально): ")
+            
+            # Показываем доступные места
+            locations = storage.list_locations()
+            if locations:
+                print("\nДоступные места:")
+                for loc in locations:
+                    print(f"  - {loc.location_id}: {loc.name}")
+            else:
+                print("\n⚠ Мест пока нет. Сначала создайте место.")
+            print()
+            
             location_id = prompt("ID места для услуги (LNNN): ")
             if not location_id:
                 print("✗ ID места обязателен.")
                 continue
+            
+            # Показываем доступных сотрудников
+            staff_members = storage.list_staff_members()
+            if staff_members:
+                print("\nДоступные сотрудники:")
+                for staff in staff_members:
+                    services_info = f", услуги: {', '.join(staff.service_ids)}" if staff.service_ids else " (нет привязанных услуг)"
+                    print(f"  - {staff.staff_id}: {staff.name} ({staff.role}){services_info}")
+            else:
+                print("\n⚠ Сотрудников пока нет. Сначала создайте сотрудника.")
+            print()
+            
             staff_id = prompt("ID сотрудника для услуги (SNNN): ")
             if not staff_id:
                 print("✗ ID сотрудника обязателен.")
@@ -484,10 +510,8 @@ def create_service(storage: ResortStorage) -> None:
             srv = Service(
                 service_id=service_id,
                 name=name,
-                service_type=service_type,
                 duration_minutes=duration,
             )
-            srv.description = description
             srv.assign_location(location_id)
             srv.assign_staff(staff_id)
             storage.create_service(srv)
@@ -510,8 +534,26 @@ def list_services(storage: ResortStorage) -> None:
     if not services:
         print("Услуг нет.")
         return
-    for s in services:
-        print(f"- {s}")
+    for i, srv in enumerate(services, 1):
+        print(f"\n{i}. Услуга ID={srv.service_id}")
+        print(f"   Название: {srv.name}")
+        print(f"   Длительность: {srv.duration_minutes} мин")
+        if srv.location_id:
+            try:
+                location = storage.get_location_by_id(srv.location_id)
+                print(f"   Место: {srv.location_id} ({location.name})")
+            except EntityNotFoundError:
+                print(f"   Место: {srv.location_id} (не найдено)")
+        else:
+            print(f"   Место: (не назначено)")
+        if srv.staff_id:
+            try:
+                staff = storage.get_staff_member_by_id(srv.staff_id)
+                print(f"   Сотрудник: {srv.staff_id} ({staff.name}, {staff.role})")
+            except EntityNotFoundError:
+                print(f"   Сотрудник: {srv.staff_id} (не найден)")
+        else:
+            print(f"   Сотрудник: (не назначен)")
 
 
 def update_service_admin(storage: ResortStorage) -> None:
@@ -526,19 +568,37 @@ def update_service_admin(storage: ResortStorage) -> None:
                 continue
             print(f"Текущая услуга: {service}")
             name = prompt_name("Новое название услуги")
-            service_type = prompt("Новый тип услуги: ")
-            if not service_type:
-                print("✗ Тип услуги обязателен.")
-                continue
             duration = prompt_int("Новая длительность (мин): ")
             if duration <= 0:
                 print("✗ Длительность должна быть положительной.")
                 continue
-            description = prompt_optional("Новое описание (опционально): ")
+            
+            # Показываем доступные места
+            locations = storage.list_locations()
+            if locations:
+                print("\nДоступные места:")
+                for loc in locations:
+                    print(f"  - {loc.location_id}: {loc.name}")
+            else:
+                print("\n⚠ Мест пока нет. Сначала создайте место.")
+            print()
+            
             location_id = prompt("Новый ID места для услуги (LNNN): ")
             if not location_id:
                 print("✗ ID места обязателен.")
                 continue
+            
+            # Показываем доступных сотрудников
+            staff_members = storage.list_staff_members()
+            if staff_members:
+                print("\nДоступные сотрудники:")
+                for staff in staff_members:
+                    services_info = f", услуги: {', '.join(staff.service_ids)}" if staff.service_ids else " (нет привязанных услуг)"
+                    print(f"  - {staff.staff_id}: {staff.name} ({staff.role}){services_info}")
+            else:
+                print("\n⚠ Сотрудников пока нет. Сначала создайте сотрудника.")
+            print()
+            
             staff_id = prompt("Новый ID сотрудника для услуги (SNNN): ")
             if not staff_id:
                 print("✗ ID сотрудника обязателен.")
@@ -554,10 +614,8 @@ def update_service_admin(storage: ResortStorage) -> None:
             updated_srv = Service(
                 service_id=service_id,
                 name=name,
-                service_type=service_type,
                 duration_minutes=duration,
             )
-            updated_srv.description = description
             updated_srv.assign_location(location_id)
             updated_srv.assign_staff(staff_id)
             storage.update_service(service_id, updated_srv)
@@ -618,10 +676,53 @@ def create_booking(storage: ResortStorage) -> None:
         try:
             booking_id = storage.generate_booking_id()
             print(f"Автоматически сгенерирован ID: {booking_id}")
+            
+            # Показываем доступных гостей
+            guests = storage.list_guests()
+            if guests:
+                print("\nДоступные гости:")
+                for guest in guests:
+                    print(f"  - {guest.guest_id}: {guest.name}")
+            else:
+                print("\n⚠ Гостей пока нет. Сначала создайте гостя.")
+            print()
+            
             guest_id = prompt("ID гостя (GNNN): ")
             if not guest_id:
                 print("✗ ID гостя обязателен.")
                 continue
+            
+            # Показываем доступные услуги с их местами и сотрудниками
+            services = storage.list_services()
+            if services:
+                print("\nДоступные услуги:")
+                for srv in services:
+                    location_info = ""
+                    staff_info = ""
+                    if srv.location_id:
+                        try:
+                            loc = storage.get_location_by_id(srv.location_id)
+                            location_info = f", место: {srv.location_id} ({loc.name})"
+                        except EntityNotFoundError:
+                            location_info = f", место: {srv.location_id} (не найдено)"
+                    else:
+                        location_info = ", место: (не назначено)"
+                    
+                    if srv.staff_id:
+                        try:
+                            staff = storage.get_staff_member_by_id(srv.staff_id)
+                            staff_info = f", сотрудник: {srv.staff_id} ({staff.name})"
+                        except EntityNotFoundError:
+                            staff_info = f", сотрудник: {srv.staff_id} (не найден)"
+                    else:
+                        staff_info = ", сотрудник: (не назначен)"
+                    
+                    status = "✓" if srv.location_id and srv.staff_id else "⚠"
+                    print(f"  {status} {srv.service_id}: {srv.name} ({srv.duration_minutes} мин){location_info}{staff_info}")
+            else:
+                print("\n⚠ Услуг пока нет. Сначала создайте услугу.")
+            print()
+            
             service_id = prompt("ID услуги (SRVNNN): ")
             if not service_id:
                 print("✗ ID услуги обязателен.")
@@ -662,8 +763,16 @@ def list_bookings(storage: ResortStorage) -> None:
     if not bookings:
         print("Бронирований нет.")
         return
-    for b in bookings:
-        print(f"- {b}")
+    for i, booking in enumerate(bookings, 1):
+        print(f"\n{i}. Бронирование ID={booking.booking_id}")
+        print(f"   Гость: {booking.guest.guest_id} ({booking.guest.name})")
+        print(f"   Услуга: {booking.service.service_id} ({booking.service.name}, {booking.service.duration_minutes} мин)")
+        print(f"   Место: {booking.location.location_id} ({booking.location.name})")
+        if booking.staff_member:
+            print(f"   Сотрудник: {booking.staff_member.staff_id} ({booking.staff_member.name}, {booking.staff_member.role})")
+        else:
+            print(f"   Сотрудник: (не назначен)")
+        print(f"   Время: {booking.time_slot.start_time.strftime('%Y-%m-%d %H:%M')} - {booking.time_slot.end_time.strftime('%H:%M')}")
 
 
 def update_booking(storage: ResortStorage) -> None:
@@ -677,11 +786,53 @@ def update_booking(storage: ResortStorage) -> None:
                 print(f"✗ {e}")
                 continue
             print(f"Текущее бронирование: {existing}")
+            
+            # Показываем доступных гостей
+            guests = storage.list_guests()
+            if guests:
+                print("\nДоступные гости:")
+                for guest in guests:
+                    print(f"  - {guest.guest_id}: {guest.name}")
+            else:
+                print("\n⚠ Гостей пока нет. Сначала создайте гостя.")
+            print()
 
             guest_id = prompt("Новый ID гостя (GNNN): ")
             if not guest_id:
                 print("✗ ID гостя обязателен.")
                 continue
+            
+            # Показываем доступные услуги с их местами и сотрудниками
+            services = storage.list_services()
+            if services:
+                print("\nДоступные услуги:")
+                for srv in services:
+                    location_info = ""
+                    staff_info = ""
+                    if srv.location_id:
+                        try:
+                            loc = storage.get_location_by_id(srv.location_id)
+                            location_info = f", место: {srv.location_id} ({loc.name})"
+                        except EntityNotFoundError:
+                            location_info = f", место: {srv.location_id} (не найдено)"
+                    else:
+                        location_info = ", место: (не назначено)"
+                    
+                    if srv.staff_id:
+                        try:
+                            staff = storage.get_staff_member_by_id(srv.staff_id)
+                            staff_info = f", сотрудник: {srv.staff_id} ({staff.name})"
+                        except EntityNotFoundError:
+                            staff_info = f", сотрудник: {srv.staff_id} (не найден)"
+                    else:
+                        staff_info = ", сотрудник: (не назначен)"
+                    
+                    status = "✓" if srv.location_id and srv.staff_id else "⚠"
+                    print(f"  {status} {srv.service_id}: {srv.name} ({srv.duration_minutes} мин){location_info}{staff_info}")
+            else:
+                print("\n⚠ Услуг пока нет. Сначала создайте услугу.")
+            print()
+            
             service_id = prompt("Новый ID услуги (SRVNNN): ")
             if not service_id:
                 print("✗ ID услуги обязателен.")

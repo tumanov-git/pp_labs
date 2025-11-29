@@ -3,7 +3,7 @@
 Создаёт примеры объектов через ResortStorage и демонстрирует CRUD-операции.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime
 import os
 from models import (
     ContactInfo,
@@ -102,24 +102,21 @@ def main():
     # Создать места
     location1 = Location(
         location_id="L001",
-        name="Грязевая ванна №1",
-        location_type="грязевая_ванна"
+        name="Грязевая ванна №1"
     )
     location1_id = storage.create_location(location1)
     print(f"✓ Создано место ID={location1_id}: {location1}")
     
     location2 = Location(
         location_id="L002",
-        name="Массажный кабинет №3",
-        location_type="массажный_кабинет"
+        name="Массажный кабинет №3"
     )
     location2_id = storage.create_location(location2)
     print(f"✓ Создано место ID={location2_id}: {location2}")
     
     location3 = Location(
         location_id="L003",
-        name="Болотная тропа",
-        location_type="тропа"
+        name="Болотная тропа"
     )
     location3_id = storage.create_location(location3)
     print(f"✓ Создано место ID={location3_id}: {location3}")
@@ -129,7 +126,6 @@ def main():
     service1 = Service(
         service_id="SRV001",
         name="Лечебная грязевая ванна",
-        service_type="грязевая_ванна",
         duration_minutes=60
     )
     # Привязать места к услугам (обязательное условие выполнения)
@@ -137,21 +133,18 @@ def main():
     service2 = Service(
         service_id="SRV002",
         name="Расслабляющий массаж",
-        service_type="массаж",
         duration_minutes=45
     )
     service2.assign_location("L002")
     service3 = Service(
         service_id="SRV003",
         name="Прогулка по болотной тропе",
-        service_type="прогулка",
         duration_minutes=90,
     )
     service3.assign_location("L003")
     service4 = Service(
         service_id="SRV004",
         name="Ароматический массаж",
-        service_type="массаж",
         duration_minutes=30,
     )
     service4.assign_location("L002")
@@ -444,7 +437,6 @@ def main():
         invalid_service = Service(
             service_id="SRV999",
             name="Невалидная услуга",
-            service_type="тест",
             duration_minutes=0
         )
         storage.create_service(invalid_service)

@@ -117,8 +117,6 @@ def _location_to_dict(location: Location) -> Dict[str, Any]:
     return {
         "location_id": location.location_id,
         "name": location.name,
-        "location_type": location.location_type,
-        "description": location.description,
     }
 
 
@@ -127,9 +125,7 @@ def _location_from_dict(data: Dict[str, Any]) -> Location:
     location = Location(
         location_id=data.get("location_id", ""),
         name=data.get("name", ""),
-        location_type=data.get("location_type", ""),
     )
-    location.description = data.get("description")
     return location
 
 
@@ -138,9 +134,7 @@ def _service_to_dict(service: Service) -> Dict[str, Any]:
     return {
         "service_id": service.service_id,
         "name": service.name,
-        "service_type": service.service_type,
         "duration_minutes": service.duration_minutes,
-        "description": service.description,
         "location_id": service.location_id,
         "staff_id": service.staff_id,
     }
@@ -151,10 +145,8 @@ def _service_from_dict(data: Dict[str, Any]) -> Service:
     service = Service(
         service_id=data.get("service_id", ""),
         name=data.get("name", ""),
-        service_type=data.get("service_type", ""),
         duration_minutes=int(data.get("duration_minutes", 0)),
     )
-    service.description = data.get("description")
     if data.get("location_id"):
         service.assign_location(data.get("location_id", ""))
     if data.get("staff_id"):
@@ -171,7 +163,6 @@ def _booking_to_dict(booking: Booking) -> Dict[str, Any]:
         "location_id": booking.location.location_id,
         "staff_id": booking.staff_member.staff_id if booking.staff_member else None,
         "time_slot": _timeslot_to_dict(booking.time_slot),
-        "status": booking.status,
     }
 
 
@@ -210,9 +201,6 @@ def _booking_from_dict(
     staff_id = data.get("staff_id")
     if staff_id and staff_id in staff_members:
         booking.assign_staff(staff_members[staff_id])
-        booking.status = data.get("status", booking.status)
-    else:
-        booking.status = data.get("status", booking.status)
     return booking
 
 
@@ -918,11 +906,12 @@ class ResortStorage:
         # Восстановление счетчиков ID
         id_counters = data.get("id_counters", {})
         if id_counters:
-            self._next_guest_id = id_counters.get("next_guest_id", 1)
-            self._next_staff_id = id_counters.get("next_staff_id", 1)
-            self._next_location_id = id_counters.get("next_location_id", 1)
-            self._next_service_id = id_counters.get("next_service_id", 1)
-            self._next_booking_id = id_counters.get("next_booking_id", 1)
+            # Убеждаемся, что счетчики являются целыми числами
+            self._next_guest_id = int(id_counters.get("next_guest_id", 1))
+            self._next_staff_id = int(id_counters.get("next_staff_id", 1))
+            self._next_location_id = int(id_counters.get("next_location_id", 1))
+            self._next_service_id = int(id_counters.get("next_service_id", 1))
+            self._next_booking_id = int(id_counters.get("next_booking_id", 1))
         else:
             # Если счетчиков нет, вычисляем максимальные значения из существующих ID
             self._update_id_counters_from_existing()

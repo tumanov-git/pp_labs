@@ -92,36 +92,28 @@
     {
       "service_id": "SRV001",
       "name": "Лечебная грязевая ванна",
-      "service_type": "грязевая_ванна",
       "duration_minutes": 60,
-      "description": null,
       "location_id": "L001",
       "staff_id": "S002"
     },
     {
       "service_id": "SRV002",
       "name": "Расслабляющий массаж",
-      "service_type": "массаж",
       "duration_minutes": 45,
-      "description": null,
       "location_id": "L002",
       "staff_id": "S001"
     },
     {
       "service_id": "SRV003",
       "name": "Прогулка по болотной тропе",
-      "service_type": "прогулка",
       "duration_minutes": 90,
-      "description": null,
       "location_id": "L003",
       "staff_id": "S003"
     },
     {
       "service_id": "SRV004",
       "name": "Ароматический массаж",
-      "service_type": "массаж",
       "duration_minutes": 30,
-      "description": null,
       "location_id": "L002",
       "staff_id": "S001"
     }
@@ -129,21 +121,15 @@
   "locations": [
     {
       "location_id": "L001",
-      "name": "Грязевая ванна №1",
-      "location_type": "грязевая_ванна",
-      "description": null
+      "name": "Грязевая ванна №1"
     },
     {
       "location_id": "L002",
-      "name": "Массажный кабинет №3",
-      "location_type": "массажный_кабинет",
-      "description": null
+      "name": "Массажный кабинет №3"
     },
     {
       "location_id": "L003",
-      "name": "Болотная тропа",
-      "location_type": "тропа",
-      "description": null
+      "name": "Болотная тропа"
     }
   ],
   "bookings": [
@@ -156,8 +142,7 @@
       "time_slot": {
         "start_time": "2024-06-02T10:00:00",
         "end_time": "2024-06-02T11:00:00"
-      },
-      "status": "подтверждено"
+      }
     },
     {
       "booking_id": "B003",
@@ -168,8 +153,7 @@
       "time_slot": {
         "start_time": "2024-06-02T11:30:00",
         "end_time": "2024-06-02T12:30:00"
-      },
-      "status": "подтверждено"
+      }
     },
     {
       "booking_id": "B004",
@@ -180,8 +164,7 @@
       "time_slot": {
         "start_time": "2024-06-02T09:00:00",
         "end_time": "2024-06-02T10:30:00"
-      },
-      "status": "подтверждено"
+      }
     },
     {
       "booking_id": "B005",
@@ -192,15 +175,14 @@
       "time_slot": {
         "start_time": "2024-06-02T16:00:00",
         "end_time": "2024-06-02T16:30:00"
-      },
-      "status": "подтверждено"
+      }
     }
   ],
   "id_counters": {
-    "next_guest_id": 1,
-    "next_staff_id": 1,
-    "next_location_id": 1,
-    "next_service_id": 1,
-    "next_booking_id": 1
+    "next_guest_id": "1",
+    "next_staff_id": "1",
+    "next_location_id": "1",
+    "next_service_id": "1",
+    "next_booking_id": "1"
   }
 }
