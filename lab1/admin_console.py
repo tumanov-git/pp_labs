@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional
 
 from exceptions import EntityNotFoundError, ValidationError, StorageError
-from models import ContactInfo, Guest, StaffMember, Location, Service, TimeSlot, Booking
+from classes import ContactInfo, Guest, StaffMember, Location, Service, TimeSlot, Booking
 from storage import ResortStorage
 
 # --- Простое состояние файла данных ---

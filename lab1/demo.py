@@ -5,7 +5,7 @@
 
 from datetime import datetime
 import os
-from models import (
+from classes import (
     ContactInfo,
     Guest,
     StaffMember,
@@ -422,17 +422,63 @@ def main():
     print("=" * 70)
     print()
     
-    # Попытка получить несуществующую сущность
-    print("Попытка получить несуществующего гостя:")
-    try:
-        non_existent_guest = storage.get_guest_by_id(999)
-        print(f"  Гость найден: {non_existent_guest}")
-    except EntityNotFoundError as e:
-        print(f"  ✗ Ошибка: {e}")
+    # --- EntityNotFoundError ---
+    print("--- EntityNotFoundError (сущность не найдена) ---")
     print()
     
-    # Попытка создать услугу с некорректной длительностью
-    print("Попытка создать услугу с некорректной длительностью:")
+    # Попытка получить несуществующую сущность
+    print("1. Попытка получить несуществующего гостя:")
+    try:
+        non_existent_guest = storage.get_guest_by_id("G999")
+        print(f"  Гость найден: {non_existent_guest}")
+    except EntityNotFoundError as e:
+        print(f"  ✗ {e}")
+    print()
+    
+    # Попытка обновить несуществующую сущность
+    print("2. Попытка обновить несуществующего сотрудника:")
+    try:
+        fake_staff = StaffMember(
+            staff_id="S999",
+            name="Несуществующий",
+            role="Тест",
+            contact=ContactInfo(email="test@test.com", phone="+1234567890")
+        )
+        storage.update_staff_member("S999", fake_staff)
+        print("  Сотрудник обновлён")
+    except EntityNotFoundError as e:
+        print(f"  ✗ {e}")
+    print()
+    
+    # Попытка удалить несуществующую сущность
+    print("3. Попытка удалить несуществующее место:")
+    try:
+        storage.delete_location("L999")
+        print("  Место удалено")
+    except EntityNotFoundError as e:
+        print(f"  ✗ {e}")
+    print()
+    
+    # --- ValidationError ---
+    print("--- ValidationError (невалидные данные) ---")
+    print()
+    
+    # Дублирование ID при создании
+    print("4. Попытка создать гостя с уже существующим ID:")
+    try:
+        duplicate_guest = Guest(
+            guest_id=guest1_id,  # Используем существующий ID
+            name="Дубликат",
+            contact=ContactInfo(email="duplicate@test.com", phone="+1111111111")
+        )
+        storage.create_guest(duplicate_guest)
+        print("  Гость создан")
+    except ValidationError as e:
+        print(f"  ✗ {e}")
+    print()
+    
+    # Создание услуги с некорректной длительностью
+    print("5. Попытка создать услугу с некорректной длительностью (0 минут):")
     try:
         invalid_service = Service(
             service_id="SRV999",
@@ -442,16 +488,144 @@ def main():
         storage.create_service(invalid_service)
         print(f"  Услуга создана: {invalid_service}")
     except ValidationError as e:
-        print(f"  ✗ Ошибка валидации: {e}")
+        print(f"  ✗ {e}")
+    print()
+    
+    # Создание услуги с отрицательной длительностью
+    print("6. Попытка создать услугу с отрицательной длительностью:")
+    try:
+        negative_service = Service(
+            service_id="SRV998",
+            name="Отрицательная услуга",
+            duration_minutes=-10
+        )
+        storage.create_service(negative_service)
+        print("  Услуга создана")
+    except ValidationError as e:
+        print(f"  ✗ {e}")
+    print()
+    
+    # Создание сотрудника с несуществующими услугами
+    print("7. Попытка создать сотрудника с несуществующими услугами:")
+    try:
+        staff_with_bad_services = StaffMember(
+            staff_id="S999",
+            name="Тестовый сотрудник",
+            role="Тестер",
+            contact=ContactInfo(email="test@test.com", phone="+1234567890")
+        )
+        staff_with_bad_services.assign_service("SRV999")  # Несуществующая услуга
+        storage.create_staff_member(staff_with_bad_services)
+        print("  Сотрудник создан")
+    except ValidationError as e:
+        print(f"  ✗ {e}")
+    print()
+    
+    # Создание услуги с несуществующим местом
+    print("8. Попытка создать услугу с несуществующим местом:")
+    try:
+        service_bad_location = Service(
+            service_id="SRV997",
+            name="Услуга с плохим местом",
+            duration_minutes=30
+        )
+        service_bad_location.assign_location("L999")  # Несуществующее место
+        storage.create_service(service_bad_location)
+        print("  Услуга создана")
+    except ValidationError as e:
+        print(f"  ✗ {e}")
+    print()
+    
+    # Создание бронирования без места/сотрудника у услуги
+    print("9. Попытка создать бронирование для услуги без назначенного места:")
+    try:
+        service_no_location = Service(
+            service_id="SRV996",
+            name="Услуга без места",
+            duration_minutes=30
+        )
+        # Не назначаем место
+        service_no_location.assign_staff(staff1_id)
+        storage.create_service(service_no_location)
+        
+        booking_no_location = Booking(
+            booking_id="B999",
+            guest=guest1,
+            service=service_no_location,
+            time_slot=TimeSlot(
+                start_time=datetime(2024, 6, 3, 10, 0),
+                end_time=datetime(2024, 6, 3, 10, 30)
+            ),
+            location=location1
+        )
+        booking_no_location.assign_staff(staff1)
+        storage.create_booking(booking_no_location)
+        print("  Бронирование создано")
+    except ValidationError as e:
+        print(f"  ✗ {e}")
+    print()
+    
+    # Создание бронирования с пересекающимся временем (гость занят)
+    print("10. Попытка создать бронирование с пересекающимся временем (гость занят):")
+    try:
+        # Используем время, которое пересекается с существующим бронированием
+        overlapping_booking = Booking(
+            booking_id="B998",
+            guest=guest1,  # Тот же гость
+            service=service1,
+            time_slot=TimeSlot(
+                start_time=datetime(2024, 6, 2, 10, 30),  # Пересекается с booking1
+                end_time=datetime(2024, 6, 2, 11, 30)
+            ),
+            location=location1
+        )
+        overlapping_booking.assign_staff(staff2)
+        storage.create_booking(overlapping_booking)
+        print("  Бронирование создано")
+    except ValidationError as e:
+        print(f"  ✗ {e}")
+    print()
+    
+    # Создание бронирования с несовпадающим местом
+    print("11. Попытка создать бронирование с местом, не совпадающим с местом услуги:")
+    try:
+        booking_wrong_location = Booking(
+            booking_id="B997",
+            guest=guest2,
+            service=service1,  # service1 привязан к location1
+            time_slot=TimeSlot(
+                start_time=datetime(2024, 6, 3, 10, 0),
+                end_time=datetime(2024, 6, 3, 11, 0)
+            ),
+            location=location2  # Но указываем location2
+        )
+        booking_wrong_location.assign_staff(staff2)
+        storage.create_booking(booking_wrong_location)
+        print("  Бронирование создано")
+    except ValidationError as e:
+        print(f"  ✗ {e}")
+    print()
+    
+    # --- StorageError ---
+    print("--- StorageError (ошибки работы с хранилищем) ---")
     print()
     
     # Попытка загрузить несуществующий файл
-    print("Попытка загрузить несуществующий файл:")
+    print("12. Попытка загрузить несуществующий JSON-файл:")
     try:
         storage.load_from_json("несуществующий_файл.json")
         print("  Файл успешно загружен")
     except StorageError as e:
-        print(f"  ✗ Ошибка хранилища: {e}")
+        print(f"  ✗ {e}")
+    print()
+    
+    # Попытка загрузить несуществующий XML-файл
+    print("13. Попытка загрузить несуществующий XML-файл:")
+    try:
+        storage.load_from_xml("несуществующий_файл.xml")
+        print("  Файл успешно загружен")
+    except StorageError as e:
+        print(f"  ✗ {e}")
     print()
     
     print("=" * 70)

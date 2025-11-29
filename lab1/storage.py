@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional
 import xml.etree.ElementTree as ET
 
 from exceptions import EntityNotFoundError, StorageError, ValidationError
-from models import (
+from classes import (
     Booking,
     ContactInfo,
     Guest,

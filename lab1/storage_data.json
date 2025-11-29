@@ -179,10 +179,10 @@
     }
   ],
   "id_counters": {
-    "next_guest_id": "1",
-    "next_staff_id": "1",
-    "next_location_id": "1",
-    "next_service_id": "1",
-    "next_booking_id": "1"
+    "next_guest_id": 1,
+    "next_staff_id": 1,
+    "next_location_id": 1,
+    "next_service_id": 1,
+    "next_booking_id": 1
   }
 }
