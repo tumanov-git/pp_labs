@@ -8,9 +8,9 @@ import requests
 from bs4 import BeautifulSoup
 
 ROMAN_PATTERN = re.compile(
-    r"\bM{0,3}(CM|CD|D?C{0,3})"
-    r"(XC|XL|L?X{0,3})"
-    r"(IX|IV|V?I{0,3})\b"
+    r"\bM0,{3}(D?C{0,4})"
+    r"(C|L|L?X{0,4}|С?L?X{0,4})"
+    r"(X|V|V?I{0,4}|I{0,4})\b"
 )
 HOSTNAME_PATTERN = re.compile(
     r"(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}",

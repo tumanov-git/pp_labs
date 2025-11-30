@@ -7,6 +7,7 @@ import json
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 import xml.etree.ElementTree as ET
+import xml.dom.minidom
 
 from exceptions import EntityNotFoundError, StorageError, ValidationError
 from classes import (
@@ -833,8 +834,15 @@ class ResortStorage:
                     for item in items:
                         item_element = ET.SubElement(section, "item")
                         _dict_to_xml(item_element, item)
-            tree = ET.ElementTree(root)
-            tree.write(path, encoding="utf-8", xml_declaration=True)
+            # Форматируем XML с отступами
+            rough_string = ET.tostring(root, encoding="utf-8")
+            reparsed = xml.dom.minidom.parseString(rough_string)
+            pretty_xml = reparsed.toprettyxml(indent="  ", encoding="utf-8")
+            # Удаляем лишние пустые строки, которые добавляет minidom
+            lines = [line for line in pretty_xml.decode("utf-8").split("\n") if line.strip()]
+            formatted_xml = "\n".join(lines)
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(formatted_xml)
         except (IOError, OSError) as e:
             raise StorageError(f"Ошибка сохранения в XML-файл '{path}': {e}") from e
 

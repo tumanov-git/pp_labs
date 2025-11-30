@@ -4,4 +4,7 @@ __pycache__/
 # Diagrams (draw.io)
 *.drawio
 lab1/uml_class_diagram.drawio
+test/
 
+# Отчет
+lab1/отчет/
