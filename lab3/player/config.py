@@ -21,11 +21,11 @@ class UIConfig:
     
     # Координаты кнопок управления окном (относительно aphex.png)
     window_buttons_y: int = 15
-    close_button_x: int = 400
+    close_button_x: int = 395
     window_buttons_spacing: int = 5
     
     # Координаты кнопок управления воспроизведением
-    play_pause_x: int = 362
+    play_pause_x: int = 365
     play_pause_y: int = 75
     control_buttons_gap: int = 10
 

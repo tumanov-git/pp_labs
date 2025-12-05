@@ -1,5 +1,5 @@
 """Главное окно приложения"""
-from PyQt6.QtWidgets import QWidget, QLabel, QMenu, QFileDialog
+from PyQt6.QtWidgets import QWidget, QLabel, QMenu, QFileDialog, QMenuBar
 from PyQt6.QtCore import Qt, QPoint
 from PyQt6.QtGui import QPixmap, QPainter, QMouseEvent, QCursor, QAction
 from .config import config
@@ -40,7 +40,7 @@ class MainWindow(QWidget):
         self.original_pause_pixmap = None
         self.original_stop_pixmap = None
         # Текущий масштаб (в процентах)
-        self.scale = 100
+        self.scale = 50
         # Аудиоплеер
         self.audio_player = AudioPlayer()
         # Подключаем сигналы для автоматического обновления состояния
@@ -92,12 +92,40 @@ class MainWindow(QWidget):
         self.play_pause_button = None
         self.stop_button = None
         
+        # Создаем менюбар
+        self.create_menu_bar()
+        
         # Включаем отслеживание мыши для перетаскивания окна
         self.setMouseTracking(True)
         self.drag_position = QPoint()
         
         # Применяем начальный масштаб
-        self.apply_scale(100)
+        self.apply_scale(50)
+    
+    def create_menu_bar(self):
+        """Создание менюбара с меню масштабирования"""
+        self.menu_bar = QMenuBar(self)
+        
+        # Создаем меню "Вид"
+        view_menu = self.menu_bar.addMenu("Вид")
+        
+        # Добавляем подменю "Масштаб"
+        scale_menu = view_menu.addMenu("Масштаб")
+        
+        # Добавляем опции масштабирования
+        scale_options = [10, 25, 50, 75, 100, 150, 200]
+        self.scale_actions = {}
+        
+        for scale_value in scale_options:
+            action = QAction(f"{scale_value}%", self)
+            action.setCheckable(True)
+            action.setChecked(scale_value == 50)  # По умолчанию 50%
+            action.triggered.connect(lambda checked, s=scale_value: self.apply_scale(s))
+            scale_menu.addAction(action)
+            self.scale_actions[scale_value] = action
+        
+        # Позиционируем менюбар в верхней части окна
+        self.menu_bar.setGeometry(0, 0, 200, 25)
         
     def button_clicked(self, button):
         """Обработка нажатия на кнопку"""
@@ -229,6 +257,11 @@ class MainWindow(QWidget):
         self.scale = scale_percent
         scale_factor = scale_percent / 100.0
         
+        # Обновляем состояние чекбоксов в меню
+        if hasattr(self, 'scale_actions'):
+            for scale_value, action in self.scale_actions.items():
+                action.setChecked(scale_value == scale_percent)
+        
         # Масштабируем изображение Aphex Twin
         scaled_width = int(self.original_aphex_pixmap.width() * scale_factor)
         scaled_height = int(self.original_aphex_pixmap.height() * scale_factor)
@@ -356,6 +389,11 @@ class MainWindow(QWidget):
             menu.addAction(action)
         
         menu.exec(position)
+        
+        # Обновляем состояние в менюбаре после выбора в контекстном меню
+        if hasattr(self, 'scale_actions'):
+            for scale_value, action in self.scale_actions.items():
+                action.setChecked(scale_value == self.scale)
         
     def paintEvent(self, event):
         """Перерисовка окна"""
