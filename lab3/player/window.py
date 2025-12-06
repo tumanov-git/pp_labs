@@ -1,7 +1,7 @@
 """Главное окно приложения"""
-from PyQt6.QtWidgets import QWidget, QLabel, QMenu, QFileDialog, QMenuBar
+from PyQt6.QtWidgets import QWidget, QLabel, QMenu, QFileDialog, QMenuBar, QApplication
 from PyQt6.QtCore import Qt, QPoint, QTimer
-from PyQt6.QtGui import QPixmap, QPainter, QMouseEvent, QCursor, QAction, QFont
+from PyQt6.QtGui import QPixmap, QPainter, QMouseEvent, QCursor, QAction, QFont, QPalette
 from .config import config
 from .audio_player import AudioPlayer
 from .viz import VisualizerWidget, decode_file_to_mono
@@ -29,11 +29,110 @@ class CustomButton(QLabel):
             self.parent().button_clicked(self)
 
 
+class MarqueeLabel(QLabel):
+    """Метка с бегущей строкой, если текст не помещается."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._text = ""
+        self._offset = 0
+        self._speed_px = 2
+        self._interval_ms = 50
+        self._timer = QTimer(self)
+        self._timer.timeout.connect(self._tick)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+
+    def set_marquee_params(self, speed_px: int, interval_ms: int):
+        self._speed_px = max(1, speed_px)
+        self._interval_ms = max(10, interval_ms)
+        self._timer.setInterval(self._interval_ms)
+
+    def set_paused(self, paused: bool):
+        """
+        Управляет анимацией бегущей строки.
+        При паузе останавливаем таймер, при возобновлении — запускаем,
+        если текст длиннее области.
+        """
+        if paused:
+            if self._timer.isActive():
+                self._timer.stop()
+        else:
+            if self._need_scroll() and not self._timer.isActive():
+                self._timer.start(self._interval_ms)
+
+    def set_text(self, text: str):
+        new_text = text or ""
+        # Сбрасываем offset только если текст изменился
+        if new_text != self._text:
+            self._text = new_text
+            self._offset = 0
+            if self._need_scroll():
+                if not self._timer.isActive():
+                    self._timer.start(self._interval_ms)
+            else:
+                self._timer.stop()
+            self.update()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        # Проверяем, нужно ли прокручивать после изменения размера
+        if self._need_scroll():
+            if not self._timer.isActive():
+                self._timer.start(self._interval_ms)
+        else:
+            self._timer.stop()
+            self._offset = 0
+
+    def _need_scroll(self) -> bool:
+        fm = self.fontMetrics()
+        return fm.horizontalAdvance(self._text) > self.width()
+
+    def _tick(self):
+        if not self._need_scroll():
+            self._timer.stop()
+            self._offset = 0
+            return
+        step = self._speed_px
+        fm = self.fontMetrics()
+        unit = fm.horizontalAdvance(self._text + "   ")
+        if unit <= 0:
+            return
+        self._offset = (self._offset + step) % unit
+        self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.TextAntialiasing, True)
+        color = self.palette().color(QPalette.ColorRole.WindowText)
+        painter.setPen(color)
+        fm = painter.fontMetrics()
+        rect = self.rect()
+        baseline = rect.y() + (rect.height() + fm.ascent() - fm.descent()) // 2
+
+        if not self._need_scroll():
+            text_width = fm.horizontalAdvance(self._text)
+            x = rect.x() + (rect.width() - text_width) // 2
+            painter.drawText(x, baseline, self._text)
+            painter.end()
+            return
+
+        text_unit = self._text + "   "
+        unit_w = fm.horizontalAdvance(text_unit)
+        x = -self._offset
+        # Дублируем текст, чтобы заполнить весь прямоугольник
+        while x < rect.width():
+            painter.drawText(rect.x() + x, baseline, text_unit)
+            x += unit_w
+        painter.end()
+
+
 class MainWindow(QWidget):
     """Главное окно с прозрачным фоном и изображением Aphex Twin"""
     
     def __init__(self):
         super().__init__()
+        # Применяем глобальный шрифт приложения сразу ко всему окну
+        self.setFont(QApplication.font())
         # Исходные размеры изображения
         self.original_aphex_pixmap = None
         self.original_close_pixmap = None
@@ -161,6 +260,9 @@ class MainWindow(QWidget):
         self.progress_filled = None
         self.progress_button = None
         self.time_label = None
+        # Строка состояния
+        self.status_label: MarqueeLabel | None = None
+        self.status_text: str = "Файл не загружен"
         
         # Таймер для обновления прогресс-бара
         self.progress_timer = QTimer(self)
@@ -180,6 +282,7 @@ class MainWindow(QWidget):
     def create_menu_bar(self):
         """Создание менюбара с меню масштабирования"""
         self.menu_bar = QMenuBar(self)
+        self.menu_bar.setFont(self._app_font(config.ui_font_size))
         
         # Создаем меню "Вид"
         view_menu = self.menu_bar.addMenu("Вид")
@@ -235,6 +338,7 @@ class MainWindow(QWidget):
             self.is_playing = True
         self._update_visualizer_play_state()
         self.update_play_pause_button()
+        self.update_status_marquee_state()
     
     def stop_playback(self):
         """Остановка воспроизведения"""
@@ -243,6 +347,8 @@ class MainWindow(QWidget):
         self._update_visualizer_play_state()
         self.update_play_pause_button()
         self.update_progress()  # Сбросить прогресс-бар
+        self.update_status_text()
+        self.update_status_marquee_state()
     
     def on_playback_state_changed(self, state):
         """Обработка изменения состояния воспроизведения"""
@@ -250,6 +356,9 @@ class MainWindow(QWidget):
         self.is_playing = (state == QMediaPlayer.PlaybackState.PlayingState)
         self._update_visualizer_play_state()
         self.update_play_pause_button()
+        # состояние файла не меняется, но статус перерисуем (пауза/плей)
+        self.update_status_text()
+        self.update_status_marquee_state()
     
     def update_play_pause_button(self):
         """Обновление внешнего вида кнопки play/pause в зависимости от состояния"""
@@ -307,6 +416,11 @@ class MainWindow(QWidget):
         duration = self.audio_player.get_duration()
         position = self.audio_player.get_position()
         
+        if duration <= 0:
+            if self.time_label:
+                self.time_label.hide()
+            return
+        
         # Вычисляем прогресс (0.0 - 1.0)
         progress = position / duration if duration > 0 else 0.0
         
@@ -361,16 +475,20 @@ class MainWindow(QWidget):
         if not self.time_label:
             return
         
-        def format_time(ms):
+        def format_time(ms, show_hours: bool):
             total_seconds = ms // 1000
             hours = total_seconds // 3600
             minutes = (total_seconds % 3600) // 60
             seconds = total_seconds % 60
-            return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+            if show_hours:
+                return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+            return f"{minutes:02d}:{seconds:02d}"
         
-        current = format_time(position_ms)
-        total = format_time(duration_ms)
+        show_hours = duration_ms >= 3_600_000
+        current = format_time(position_ms, show_hours)
+        total = format_time(duration_ms, show_hours)
         self.time_label.setText(f"{current}/{total}")
+        self.time_label.show()
         
         # Центрируем метку под прогресс-баром
         scale_factor = self.scale / 100.0
@@ -692,6 +810,9 @@ class MainWindow(QWidget):
         # Кнопки режимов визуализатора
         self.scale_viz_mode_buttons(scale_factor)
         
+        # Строка состояния
+        self.scale_status_label(scale_factor)
+        
         # Масштабируем прогресс-бар
         self.scale_progress_bar(scale_factor)
         
@@ -763,7 +884,7 @@ class MainWindow(QWidget):
         else:
             self.time_label.setStyleSheet(f"color: {config.time_text_color};")
         
-        font = QFont("Arial", font_size)
+        font = self._app_font(font_size)
         self.time_label.setFont(font)
         self.time_label.adjustSize()
         
@@ -791,9 +912,11 @@ class MainWindow(QWidget):
         buttons_def = [
             ("wave", config.viz_btn_wave_x, config.viz_btn_wave_y,
              self.original_viz_wave_active, self.original_viz_wave_inactive),
-            ("2d", config.viz_btn_2d_x, config.viz_btn_2d_y,
+            # Меняем местами функционал 2 и 3: кнопка "2" теперь режим 3d
+            ("3d", config.viz_btn_2d_x, config.viz_btn_2d_y,
              self.original_viz_2d_active, self.original_viz_2d_inactive),
-            ("3d", config.viz_btn_3d_x, config.viz_btn_3d_y,
+            # Кнопка "3" теперь режим 2d (кот)
+            ("2d", config.viz_btn_3d_x, config.viz_btn_3d_y,
              self.original_viz_3d_active, self.original_viz_3d_inactive),
         ]
         for mode, base_x, base_y, pix_active, pix_inactive in buttons_def:
@@ -814,6 +937,24 @@ class MainWindow(QWidget):
             btn.move(int(base_x * scale_factor), int(base_y * scale_factor))
             btn.show()
             btn.raise_()
+
+    def scale_status_label(self, scale_factor: float):
+        """Масштабирование и позиционирование строки состояния."""
+        if not self.status_label:
+            self.status_label = MarqueeLabel(self)
+        w = int(config.status_width * scale_factor)
+        h = int(config.status_height * scale_factor)
+        x = int(config.status_x * scale_factor)
+        y = int(config.status_y * scale_factor)
+        self.status_label.setGeometry(x, y, w, h)
+        font = self._app_font(int(config.status_font_size * scale_factor))
+        self.status_label.setFont(font)
+        self.status_label.setStyleSheet(f"color: {config.status_color};")
+        self.status_label.set_marquee_params(config.status_marquee_speed_px, config.status_marquee_interval_ms)
+        self.status_label.set_text(self.status_text)
+        self.status_label.show()
+        self.status_label.raise_()
+        self.update_status_marquee_state()
     
     def show_context_menu(self, position):
         """Показать контекстное меню с опциями масштабирования"""
@@ -847,11 +988,13 @@ class MainWindow(QWidget):
             event.accept()
             return
         if key == Qt.Key.Key_2:
-            self.set_viz_mode("2d")
+            # Меняем местами функционал: 2 -> 3d
+            self.set_viz_mode("3d")
             event.accept()
             return
         if key == Qt.Key.Key_3:
-            self.set_viz_mode("3d")
+            # 3 -> 2d (кот)
+            self.set_viz_mode("2d")
             event.accept()
             return
         super().keyPressEvent(event)
@@ -872,8 +1015,13 @@ class MainWindow(QWidget):
             if auto_play:
                 self.audio_player.play()
                 self.is_playing = True
+            else:
+                # Явно сбрасываем флаг проигрывания, если не автозапуск
+                self.is_playing = False
             self._update_visualizer_play_state()
             self.update_play_pause_button()
+            self.update_status_text()
+            self.update_status_marquee_state()
         except Exception as e:
             print(f"Ошибка загрузки файла: {e}")
 
@@ -888,6 +1036,14 @@ class MainWindow(QWidget):
         # Обновить кнопки (переиспользуем масштабирование для смены спрайта)
         scale_factor = self.scale / 100.0
         self.scale_viz_mode_buttons(scale_factor)
+        # Обновить строку состояния (текст может не меняться, но перерисуем)
+        self.scale_status_label(scale_factor)
+        self.update_status_text()
+
+    def _app_font(self, size: int | None = None) -> QFont:
+        """Возвращает шрифт приложения с заданным размером."""
+        base = QApplication.font()
+        return QFont(base.family(), size if size is not None else base.pointSize())
 
     def _update_visualizer_play_state(self):
         """Синхронизировать визуализатор с состоянием плеера."""
@@ -931,6 +1087,47 @@ class MainWindow(QWidget):
             idx = np.linspace(0, waveform.size - 1, downsample).astype(int)
             waveform = waveform[idx]
         self.visualizer.feed_features(spec, waveform)
+        # Синхронизируем состояние строки (например, при старте/стопе)
+        self.update_status_text()
+
+    def update_status_text(self):
+        """Обновление текста строки состояния и бегущей строки."""
+        if not self.status_label:
+            return
+        if not self.audio_player.current_file:
+            text = "Файл не загружен"
+        else:
+            artist, title = self._get_track_meta()
+            text = f'Играет: "{artist}" — "{title}"'
+        self.status_text = text
+        self.status_label.set_text(text)
+        self.update_status_marquee_state()
+
+    def _get_track_meta(self):
+        """Пытаемся получить автора и название трека из метаданных плеера."""
+        artist = ""
+        title = ""
+        try:
+            from PyQt6.QtMultimedia import QMediaMetaData
+            meta = self.audio_player.media_player.metaData()
+            if meta:
+                artist = meta.get(QMediaMetaData.Key.Author) or meta.get(QMediaMetaData.Key.AlbumArtist) or ""
+                title = meta.get(QMediaMetaData.Key.Title) or ""
+        except Exception:
+            pass
+        if self.audio_player.current_file:
+            if not title:
+                title = self.audio_player.current_file.stem
+        if not artist:
+            artist = "Unknown"
+        return artist, title
+
+    def update_status_marquee_state(self):
+        """Остановить или запустить бегущую строку в зависимости от воспроизведения."""
+        if not self.status_label:
+            return
+        paused = not self.is_playing
+        self.status_label.set_paused(paused)
         
     def paintEvent(self, event):
         """Перерисовка окна"""

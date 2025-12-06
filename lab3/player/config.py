@@ -30,6 +30,7 @@ class UIConfig:
     viz_button_3d_inactive: Path = UI_DIR / "button_three_d.png"
     file_button: Path = UI_DIR / "file_button.png"
     cat_gif: Path = UI_DIR / "cat-silly.gif"
+    pixel_font: Path = UI_DIR / "thin_pixel.ttf"
     
     # Координаты кнопок управления окном (относительно aphex.png)
     window_buttons_y: int = 15
@@ -45,7 +46,7 @@ class UIConfig:
     progress_bar_x: int = 278
     progress_bar_y: int = 560
     time_label_gap: int = 10  # Отступ таймера от прогресс-бара
-    time_font_size: int = 20  # Размер шрифта при 100%
+    time_font_size: int = 40  # Размер шрифта при 100%
     time_text_color: str = "#d7a910"  # Цвет текста времени
     
     # Область аудиовизуализатора (px относительно оригинальной aphex.png)
@@ -71,6 +72,19 @@ class UIConfig:
     # Кнопка выбора файла
     file_button_x: int = 538
     file_button_y: int = 75
+    
+    # Общий шрифт приложения
+    ui_font_size: int = 40
+    
+    # Строка состояния (под визуализатором)
+    status_x: int = 248
+    status_y: int = 492
+    status_width: int = 357  # 605 - 248
+    status_height: int = 32
+    status_font_size: int = 40
+    status_color: str = "#d7a910"
+    status_marquee_speed_px: int = 2
+    status_marquee_interval_ms: int = 50
 
 
 # Глобальный объект конфигурации
