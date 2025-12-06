@@ -1,6 +1,6 @@
 """Главное окно приложения"""
 from PyQt6.QtWidgets import QWidget, QLabel, QMenu, QFileDialog, QMenuBar, QApplication
-from PyQt6.QtCore import Qt, QPoint, QTimer
+from PyQt6.QtCore import Qt, QPoint, QTimer, pyqtSignal
 from PyQt6.QtGui import QPixmap, QPainter, QMouseEvent, QCursor, QAction, QFont, QPalette
 from .config import config
 from .audio_player import AudioPlayer
@@ -10,6 +10,8 @@ import numpy as np
 
 class CustomButton(QLabel):
     """Кастомная кнопка из PNG изображения"""
+    
+    clicked = pyqtSignal()  # Сигнал нажатия
     
     def __init__(self, pixmap, parent=None):
         super().__init__(parent)
@@ -25,8 +27,41 @@ class CustomButton(QLabel):
     def mousePressEvent(self, event: QMouseEvent):
         """Обработка нажатия на кнопку"""
         if event.button() == Qt.MouseButton.LeftButton:
-            event.accept()  # Предотвращаем распространение события
-            self.parent().button_clicked(self)
+            event.accept()
+            self.clicked.emit()
+
+
+class ProgressButton(QLabel):
+    """Кнопка ползунка прогресс-бара с поддержкой перетаскивания."""
+    
+    drag_started = pyqtSignal()
+    drag_moved = pyqtSignal(QPoint)  # Передаём глобальную позицию мыши
+    drag_finished = pyqtSignal(QPoint)
+    
+    def __init__(self, pixmap, parent=None):
+        super().__init__(parent)
+        self.setPixmap(pixmap)
+        self.setFixedSize(pixmap.size())
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        self._dragging = False
+    
+    def mousePressEvent(self, event: QMouseEvent):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._dragging = True
+            self.drag_started.emit()
+            event.accept()
+    
+    def mouseMoveEvent(self, event: QMouseEvent):
+        if self._dragging:
+            self.drag_moved.emit(event.globalPosition().toPoint())
+            event.accept()
+    
+    def mouseReleaseEvent(self, event: QMouseEvent):
+        if event.button() == Qt.MouseButton.LeftButton and self._dragging:
+            self._dragging = False
+            self.drag_finished.emit(event.globalPosition().toPoint())
+            event.accept()
 
 
 class MarqueeLabel(QLabel):
@@ -280,48 +315,88 @@ class MainWindow(QWidget):
         self.apply_scale(50)
     
     def create_menu_bar(self):
-        """Создание менюбара с меню масштабирования"""
+        """Создание меню приложения (только для macOS)"""
         self.menu_bar = QMenuBar(self)
         self.menu_bar.setFont(self._app_font(config.ui_font_size))
         
-        # Создаем меню "Вид"
+        # На Windows/Linux прячем меню (будет контекстным по ПКМ), на Mac оно нативное
+        import sys
+        if sys.platform != 'darwin':
+            # На Windows/Linux меню не будет видимым, только для контекстного меню
+            self.menu_bar.hide()
+        else:
+            # На macOS показываем нативное меню в системной строке
+            self.menu_bar.show()
+        
+        # === МЕНЮ "ФАЙЛ" ===
+        file_menu = self.menu_bar.addMenu("Файл")
+        
+        open_action = QAction("Открыть...", self)
+        open_action.setShortcut("Ctrl+O")
+        open_action.triggered.connect(lambda: self.select_and_load_file(auto_play=False))
+        file_menu.addAction(open_action)
+        
+        file_menu.addSeparator()
+        
+        quit_action = QAction("Выход", self)
+        quit_action.setShortcut("Ctrl+Q")
+        quit_action.triggered.connect(self.close)
+        file_menu.addAction(quit_action)
+        
+        # === МЕНЮ "ВОСПРОИЗВЕДЕНИЕ" ===
+        playback_menu = self.menu_bar.addMenu("Воспроизведение")
+        
+        play_pause_action = QAction("Play/Pause", self)
+        play_pause_action.setShortcut("Space")
+        play_pause_action.triggered.connect(self.toggle_play_pause)
+        playback_menu.addAction(play_pause_action)
+        
+        stop_action = QAction("Стоп", self)
+        stop_action.setShortcut("S")
+        stop_action.triggered.connect(self.stop_playback)
+        playback_menu.addAction(stop_action)
+        
+        # === МЕНЮ "ВИД" ===
         view_menu = self.menu_bar.addMenu("Вид")
         
-        # Добавляем подменю "Масштаб"
+        # Подменю "Визуализация"
+        viz_menu = view_menu.addMenu("Визуализация")
+        
+        self.viz_actions = {}
+        viz_modes = [
+            ("wave", "Волна", "1"),
+            ("3d", "3D спектр", "2"),
+            ("2d", "2D (кот)", "3"),
+        ]
+        
+        for mode, name, shortcut in viz_modes:
+            action = QAction(name, self)
+            action.setShortcut(shortcut)
+            action.setCheckable(True)
+            action.setChecked(mode == self.viz_mode)
+            action.triggered.connect(lambda checked, m=mode: self.set_viz_mode(m))
+            viz_menu.addAction(action)
+            self.viz_actions[mode] = action
+        
+        view_menu.addSeparator()
+        
+        # Подменю "Масштаб"
         scale_menu = view_menu.addMenu("Масштаб")
         
-        # Добавляем опции масштабирования
         scale_options = [10, 25, 50, 75, 100, 150, 200]
         self.scale_actions = {}
         
         for scale_value in scale_options:
             action = QAction(f"{scale_value}%", self)
             action.setCheckable(True)
-            action.setChecked(scale_value == 50)  # По умолчанию 50%
+            action.setChecked(scale_value == 50)
             action.triggered.connect(lambda checked, s=scale_value: self.apply_scale(s))
             scale_menu.addAction(action)
             self.scale_actions[scale_value] = action
         
-        # Позиционируем менюбар в верхней части окна
-        self.menu_bar.setGeometry(0, 0, 200, 25)
-        
-    def button_clicked(self, button):
-        """Обработка нажатия на кнопку"""
-        for mode, btn in self.viz_mode_buttons.items():
-            if button == btn:
-                self.set_viz_mode(mode)
-                return
-        if button == self.file_button:
-            self.select_and_load_file(auto_play=False)
-            return
-        if button == self.close_button:
-            self.close()
-        elif button == self.minimize_button:
-            self.showMinimized()
-        elif button == self.play_pause_button:
-            self.toggle_play_pause()
-        elif button == self.stop_button:
-            self.stop_playback()
+    def _connect_button(self, button: CustomButton, handler):
+        """Подключить сигнал clicked кнопки к обработчику."""
+        button.clicked.connect(handler)
     
     def toggle_play_pause(self):
         """Переключение между воспроизведением и паузой"""
@@ -367,25 +442,12 @@ class MainWindow(QWidget):
         
         scale_factor = self.scale / 100.0
         if self.is_playing:
-            # Показываем pause
-            scaled_pause = self.original_pause_pixmap.scaled(
-                int(self.original_pause_pixmap.width() * scale_factor),
-                int(self.original_pause_pixmap.height() * scale_factor),
-                Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.SmoothTransformation
-            )
-            self.play_pause_button.setPixmap(scaled_pause)
-            self.play_pause_button.setFixedSize(scaled_pause.size())
+            scaled = self._scale_pixmap(self.original_pause_pixmap, scale_factor)
         else:
-            # Показываем play
-            scaled_play = self.original_play_pixmap.scaled(
-                int(self.original_play_pixmap.width() * scale_factor),
-                int(self.original_play_pixmap.height() * scale_factor),
-                Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.SmoothTransformation
-            )
-            self.play_pause_button.setPixmap(scaled_play)
-            self.play_pause_button.setFixedSize(scaled_play.size())
+            scaled = self._scale_pixmap(self.original_play_pixmap, scale_factor)
+        
+        self.play_pause_button.setPixmap(scaled)
+        self.play_pause_button.setFixedSize(scaled.size())
         
         # Обновляем позицию stop кнопки после изменения размера play/pause
         self.update_stop_button_position()
@@ -503,19 +565,13 @@ class MainWindow(QWidget):
         label_y = bar_y + bar_height + gap
         self.time_label.move(label_x, label_y)
     
-    def on_progress_button_press(self, event: QMouseEvent):
+    def on_progress_drag_started(self):
         """Начало перетаскивания ползунка"""
-        if event.button() == Qt.MouseButton.LeftButton:
-            self.is_dragging_progress = True
-            self.is_dragging_window = False  # Предотвращаем перетаскивание окна
-            event.accept()
+        self.is_dragging_progress = True
+        self.is_dragging_window = False
     
-    def on_progress_button_move(self, event: QMouseEvent):
+    def on_progress_drag_moved(self, global_pos: QPoint):
         """Перетаскивание ползунка"""
-        if not self.is_dragging_progress:
-            return
-        
-        # Предотвращаем перетаскивание окна
         self.is_dragging_window = False
         
         scale_factor = self.scale / 100.0
@@ -523,8 +579,6 @@ class MainWindow(QWidget):
         bar_width = self.progress_empty.width() if self.progress_empty else 0
         button_width = self.progress_button.width() if self.progress_button else 0
         
-        # Получаем позицию мыши относительно окна
-        global_pos = event.globalPosition().toPoint()
         local_pos = self.mapFromGlobal(global_pos)
         
         # Вычисляем прогресс из позиции мыши
@@ -538,32 +592,25 @@ class MainWindow(QWidget):
         duration = self.audio_player.get_duration()
         position = int(duration * progress)
         self.update_time_label(position, duration)
-        
-        event.accept()
     
-    def on_progress_button_release(self, event: QMouseEvent):
+    def on_progress_drag_finished(self, global_pos: QPoint):
         """Окончание перетаскивания ползунка"""
-        if event.button() == Qt.MouseButton.LeftButton and self.is_dragging_progress:
-            self.is_dragging_progress = False
-            
-            # Вычисляем финальную позицию и перематываем
-            scale_factor = self.scale / 100.0
-            bar_x = int(config.progress_bar_x * scale_factor)
-            bar_width = self.progress_empty.width() if self.progress_empty else 0
-            button_width = self.progress_button.width() if self.progress_button else 0
-            
-            global_pos = event.globalPosition().toPoint()
-            local_pos = self.mapFromGlobal(global_pos)
-            
-            progress = (local_pos.x() - bar_x - button_width // 2) / (bar_width - button_width)
-            progress = max(0.0, min(1.0, progress))
-            
-            # Перематываем аудио
-            duration = self.audio_player.get_duration()
-            new_position = int(duration * progress)
-            self.audio_player.set_position(new_position)
-            
-            event.accept()
+        self.is_dragging_progress = False
+        
+        scale_factor = self.scale / 100.0
+        bar_x = int(config.progress_bar_x * scale_factor)
+        bar_width = self.progress_empty.width() if self.progress_empty else 0
+        button_width = self.progress_button.width() if self.progress_button else 0
+        
+        local_pos = self.mapFromGlobal(global_pos)
+        
+        progress = (local_pos.x() - bar_x - button_width // 2) / (bar_width - button_width)
+        progress = max(0.0, min(1.0, progress))
+        
+        # Перематываем аудио
+        duration = self.audio_player.get_duration()
+        new_position = int(duration * progress)
+        self.audio_player.set_position(new_position)
     
     def seek_to_click_position(self, click_pos: QPoint):
         """Перемотка к позиции клика на прогресс-баре"""
@@ -638,8 +685,10 @@ class MainWindow(QWidget):
             self.drag_position = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
             event.accept()
         elif event.button() == Qt.MouseButton.RightButton:
-            # Показываем контекстное меню с масштабированием
-            self.show_context_menu(event.globalPosition().toPoint())
+            # Показываем контекстное меню (только на Windows/Linux)
+            import sys
+            if sys.platform != 'darwin':
+                self.show_context_menu(event.globalPosition().toPoint())
             event.accept()
             
     def mouseMoveEvent(self, event: QMouseEvent):
@@ -669,13 +718,9 @@ class MainWindow(QWidget):
                 action.setChecked(scale_value == scale_percent)
         
         # Масштабируем изображение Aphex Twin
-        scaled_width = int(self.original_aphex_pixmap.width() * scale_factor)
-        scaled_height = int(self.original_aphex_pixmap.height() * scale_factor)
-        scaled_aphex = self.original_aphex_pixmap.scaled(
-            scaled_width, scaled_height,
-            Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation
-        )
+        scaled_aphex = self._scale_pixmap(self.original_aphex_pixmap, scale_factor)
+        scaled_width = scaled_aphex.width()
+        scaled_height = scaled_aphex.height()
         
         # Устанавливаем размер окна
         self.setFixedSize(scaled_width, scaled_height)
@@ -692,19 +737,8 @@ class MainWindow(QWidget):
         self.visualizer.raise_()
         
         # Масштабируем кнопки
-        scaled_close = self.original_close_pixmap.scaled(
-            int(self.original_close_pixmap.width() * scale_factor),
-            int(self.original_close_pixmap.height() * scale_factor),
-            Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation
-        )
-        
-        scaled_minimize = self.original_minimize_pixmap.scaled(
-            int(self.original_minimize_pixmap.width() * scale_factor),
-            int(self.original_minimize_pixmap.height() * scale_factor),
-            Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation
-        )
+        scaled_close = self._scale_pixmap(self.original_close_pixmap, scale_factor)
+        scaled_minimize = self._scale_pixmap(self.original_minimize_pixmap, scale_factor)
         
         # Обновляем существующие кнопки или создаем новые, если их нет
         if self.close_button:
@@ -712,12 +746,14 @@ class MainWindow(QWidget):
             self.close_button.setFixedSize(scaled_close.size())
         else:
             self.close_button = CustomButton(scaled_close, self)
+            self._connect_button(self.close_button, self.close)
             
         if self.minimize_button:
             self.minimize_button.setPixmap(scaled_minimize)
             self.minimize_button.setFixedSize(scaled_minimize.size())
         else:
             self.minimize_button = CustomButton(scaled_minimize, self)
+            self._connect_button(self.minimize_button, self.showMinimized)
         
         # Пересчитываем позиции кнопок с учетом масштаба
         scaled_close_x = int(config.close_button_x * scale_factor)
@@ -731,26 +767,9 @@ class MainWindow(QWidget):
         )
         
         # Масштабируем кнопки управления воспроизведением
-        scaled_play = self.original_play_pixmap.scaled(
-            int(self.original_play_pixmap.width() * scale_factor),
-            int(self.original_play_pixmap.height() * scale_factor),
-            Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation
-        )
-        
-        scaled_pause = self.original_pause_pixmap.scaled(
-            int(self.original_pause_pixmap.width() * scale_factor),
-            int(self.original_pause_pixmap.height() * scale_factor),
-            Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation
-        )
-        
-        scaled_stop = self.original_stop_pixmap.scaled(
-            int(self.original_stop_pixmap.width() * scale_factor),
-            int(self.original_stop_pixmap.height() * scale_factor),
-            Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation
-        )
+        scaled_play = self._scale_pixmap(self.original_play_pixmap, scale_factor)
+        scaled_pause = self._scale_pixmap(self.original_pause_pixmap, scale_factor)
+        scaled_stop = self._scale_pixmap(self.original_stop_pixmap, scale_factor)
         
         # Обновляем или создаем кнопку play/pause
         if self.play_pause_button:
@@ -764,6 +783,7 @@ class MainWindow(QWidget):
         else:
             # Создаем новую кнопку (по умолчанию play)
             self.play_pause_button = CustomButton(scaled_play, self)
+            self._connect_button(self.play_pause_button, self.toggle_play_pause)
         
         # Обновляем или создаем кнопку stop
         if self.stop_button:
@@ -771,6 +791,7 @@ class MainWindow(QWidget):
             self.stop_button.setFixedSize(scaled_stop.size())
         else:
             self.stop_button = CustomButton(scaled_stop, self)
+            self._connect_button(self.stop_button, self.stop_playback)
         
         # Пересчитываем позиции кнопок управления с учетом масштаба
         scaled_play_pause_x = int(config.play_pause_x * scale_factor)
@@ -789,17 +810,13 @@ class MainWindow(QWidget):
         self.stop_button.show()
         
         # Кнопка выбора файла
-        scaled_file_btn = self.original_file_button_pixmap.scaled(
-            int(self.original_file_button_pixmap.width() * scale_factor),
-            int(self.original_file_button_pixmap.height() * scale_factor),
-            Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation
-        )
+        scaled_file_btn = self._scale_pixmap(self.original_file_button_pixmap, scale_factor)
         if self.file_button:
             self.file_button.setPixmap(scaled_file_btn)
             self.file_button.setFixedSize(scaled_file_btn.size())
         else:
             self.file_button = CustomButton(scaled_file_btn, self)
+            self._connect_button(self.file_button, lambda: self.select_and_load_file(auto_play=False))
         self.file_button.move(
             int(config.file_button_x * scale_factor),
             int(config.file_button_y * scale_factor)
@@ -819,19 +836,8 @@ class MainWindow(QWidget):
     def scale_progress_bar(self, scale_factor: float):
         """Масштабирование прогресс-бара"""
         # Масштабируем изображения прогресс-бара
-        scaled_empty = self.original_progress_empty_pixmap.scaled(
-            int(self.original_progress_empty_pixmap.width() * scale_factor),
-            int(self.original_progress_empty_pixmap.height() * scale_factor),
-            Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation
-        )
-        
-        scaled_button = self.original_progress_button_pixmap.scaled(
-            int(self.original_progress_button_pixmap.width() * scale_factor),
-            int(self.original_progress_button_pixmap.height() * scale_factor),
-            Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation
-        )
+        scaled_empty = self._scale_pixmap(self.original_progress_empty_pixmap, scale_factor)
+        scaled_button = self._scale_pixmap(self.original_progress_button_pixmap, scale_factor)
         
         # Позиция прогресс-бара
         bar_x = int(config.progress_bar_x * scale_factor)
@@ -859,15 +865,11 @@ class MainWindow(QWidget):
             self.progress_button.setPixmap(scaled_button)
             self.progress_button.setFixedSize(scaled_button.size())
         else:
-            self.progress_button = QLabel(self)
-            self.progress_button.setPixmap(scaled_button)
-            self.progress_button.setFixedSize(scaled_button.size())
-            self.progress_button.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-            self.progress_button.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-            # Подключаем события мыши для перетаскивания
-            self.progress_button.mousePressEvent = self.on_progress_button_press
-            self.progress_button.mouseMoveEvent = self.on_progress_button_move
-            self.progress_button.mouseReleaseEvent = self.on_progress_button_release
+            self.progress_button = ProgressButton(scaled_button, self)
+            # Подключаем сигналы для перетаскивания
+            self.progress_button.drag_started.connect(self.on_progress_drag_started)
+            self.progress_button.drag_moved.connect(self.on_progress_drag_moved)
+            self.progress_button.drag_finished.connect(self.on_progress_drag_finished)
         
         # Центрируем кнопку по вертикали относительно прогресс-бара
         bar_height = scaled_empty.height()
@@ -921,12 +923,7 @@ class MainWindow(QWidget):
         ]
         for mode, base_x, base_y, pix_active, pix_inactive in buttons_def:
             pixmap = pix_active if self.viz_mode == mode else pix_inactive
-            scaled = pixmap.scaled(
-                int(pixmap.width() * scale_factor),
-                int(pixmap.height() * scale_factor),
-                Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.SmoothTransformation
-            )
+            scaled = self._scale_pixmap(pixmap, scale_factor)
             btn = self.viz_mode_buttons.get(mode)
             if btn:
                 btn.setPixmap(scaled)
@@ -934,6 +931,8 @@ class MainWindow(QWidget):
             else:
                 btn = CustomButton(scaled, self)
                 self.viz_mode_buttons[mode] = btn
+                # Захватываем mode в lambda через параметр по умолчанию
+                self._connect_button(btn, lambda m=mode: self.set_viz_mode(m))
             btn.move(int(base_x * scale_factor), int(base_y * scale_factor))
             btn.show()
             btn.raise_()
@@ -957,8 +956,53 @@ class MainWindow(QWidget):
         self.update_status_marquee_state()
     
     def show_context_menu(self, position):
-        """Показать контекстное меню с опциями масштабирования"""
+        """Показать нативное контекстное меню (для Windows/Linux)"""
         menu = QMenu(self)
+        
+        # === ФАЙЛ ===
+        open_action = QAction("Открыть...", self)
+        open_action.setShortcut("Ctrl+O")
+        open_action.triggered.connect(lambda: self.select_and_load_file(auto_play=False))
+        menu.addAction(open_action)
+        
+        menu.addSeparator()
+        
+        # === ВОСПРОИЗВЕДЕНИЕ ===
+        playback_menu = menu.addMenu("Воспроизведение")
+        
+        play_pause_action = QAction("Play/Pause", self)
+        play_pause_action.setShortcut("Space")
+        play_pause_action.triggered.connect(self.toggle_play_pause)
+        playback_menu.addAction(play_pause_action)
+        
+        stop_action = QAction("Стоп", self)
+        stop_action.setShortcut("S")
+        stop_action.triggered.connect(self.stop_playback)
+        playback_menu.addAction(stop_action)
+        
+        menu.addSeparator()
+        
+        # === ВИЗУАЛИЗАЦИЯ ===
+        viz_menu = menu.addMenu("Визуализация")
+        
+        viz_modes = [
+            ("wave", "Волна", "1"),
+            ("3d", "3D спектр", "2"),
+            ("2d", "2D (кот)", "3"),
+        ]
+        
+        for mode, name, shortcut in viz_modes:
+            action = QAction(name, self)
+            action.setShortcut(shortcut)
+            action.setCheckable(True)
+            action.setChecked(mode == self.viz_mode)
+            action.triggered.connect(lambda checked, m=mode: self.set_viz_mode(m))
+            viz_menu.addAction(action)
+        
+        menu.addSeparator()
+        
+        # === МАСШТАБ ===
+        scale_menu = menu.addMenu("Масштаб")
         
         scale_options = [10, 25, 50, 75, 100, 150, 200]
         
@@ -967,15 +1011,27 @@ class MainWindow(QWidget):
             action.setCheckable(True)
             action.setChecked(scale_value == self.scale)
             action.triggered.connect(lambda checked, s=scale_value: self.apply_scale(s))
-            menu.addAction(action)
+            scale_menu.addAction(action)
         
+        menu.addSeparator()
+        
+        # === ВЫХОД ===
+        quit_action = QAction("Выход", self)
+        quit_action.setShortcut("Ctrl+Q")
+        quit_action.triggered.connect(self.close)
+        menu.addAction(quit_action)
+        
+        # Показываем меню
         menu.exec(position)
         
-        # Обновляем состояние в менюбаре после выбора в контекстном меню
+        # Обновляем состояние в менюбаре после выбора в контекстном меню (для macOS)
         if hasattr(self, 'scale_actions'):
             for scale_value, action in self.scale_actions.items():
                 action.setChecked(scale_value == self.scale)
-        
+        if hasattr(self, 'viz_actions'):
+            for mode, action in self.viz_actions.items():
+                action.setChecked(mode == self.viz_mode)
+    
     def keyPressEvent(self, event):
         """Горячие клавиши для смены режима визуализатора."""
         if not self.visualizer:
@@ -1033,6 +1089,10 @@ class MainWindow(QWidget):
         if self.visualizer:
             self.visualizer.set_mode(mode)
             self._update_visualizer_play_state()
+        # Обновить галочки в меню
+        if hasattr(self, 'viz_actions'):
+            for m, action in self.viz_actions.items():
+                action.setChecked(m == mode)
         # Обновить кнопки (переиспользуем масштабирование для смены спрайта)
         scale_factor = self.scale / 100.0
         self.scale_viz_mode_buttons(scale_factor)
@@ -1044,6 +1104,15 @@ class MainWindow(QWidget):
         """Возвращает шрифт приложения с заданным размером."""
         base = QApplication.font()
         return QFont(base.family(), size if size is not None else base.pointSize())
+
+    def _scale_pixmap(self, pixmap: QPixmap, scale_factor: float) -> QPixmap:
+        """Масштабирует pixmap с сохранением пропорций и сглаживанием."""
+        return pixmap.scaled(
+            int(pixmap.width() * scale_factor),
+            int(pixmap.height() * scale_factor),
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation
+        )
 
     def _update_visualizer_play_state(self):
         """Синхронизировать визуализатор с состоянием плеера."""
