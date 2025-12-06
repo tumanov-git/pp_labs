@@ -44,6 +44,13 @@ class MainWindow(QWidget):
         self.original_progress_empty_pixmap = None
         self.original_progress_filled_pixmap = None
         self.original_progress_button_pixmap = None
+        self.original_file_button_pixmap = None
+        self.original_viz_wave_active = None
+        self.original_viz_wave_inactive = None
+        self.original_viz_2d_active = None
+        self.original_viz_2d_inactive = None
+        self.original_viz_3d_active = None
+        self.original_viz_3d_inactive = None
         # Текущий масштаб (в процентах)
         self.scale = 50
         # Флаг перетаскивания ползунка прогресс-бара
@@ -58,6 +65,12 @@ class MainWindow(QWidget):
         self.is_playing = False
         # Виджет аудиовизуализатора
         self.visualizer: VisualizerWidget | None = None
+        # Текущий режим визуализатора
+        self.viz_mode = "wave"
+        # Кнопки режимов
+        self.viz_mode_buttons = {}
+        # Кнопка выбора файла
+        self.file_button = None
         # Буфер для визуализации
         self._viz_audio: np.ndarray | None = None
         self._viz_samplerate: int = 0
@@ -106,6 +119,26 @@ class MainWindow(QWidget):
         self.original_progress_button_pixmap = QPixmap(str(config.progress_button))
         if self.original_progress_button_pixmap.isNull():
             raise FileNotFoundError(f"Не удалось загрузить изображение: {config.progress_button}")
+        # Кнопка выбора файла
+        self.original_file_button_pixmap = QPixmap(str(config.file_button))
+        if self.original_file_button_pixmap.isNull():
+            raise FileNotFoundError(f"Не удалось загрузить изображение: {config.file_button}")
+        # Кнопки режимов визуализатора
+        self.original_viz_wave_active = QPixmap(str(config.viz_button_wave_active))
+        self.original_viz_wave_inactive = QPixmap(str(config.viz_button_wave_inactive))
+        self.original_viz_2d_active = QPixmap(str(config.viz_button_2d_active))
+        self.original_viz_2d_inactive = QPixmap(str(config.viz_button_2d_inactive))
+        self.original_viz_3d_active = QPixmap(str(config.viz_button_3d_active))
+        self.original_viz_3d_inactive = QPixmap(str(config.viz_button_3d_inactive))
+        if any(p.isNull() for p in [
+            self.original_viz_wave_active,
+            self.original_viz_wave_inactive,
+            self.original_viz_2d_active,
+            self.original_viz_2d_inactive,
+            self.original_viz_3d_active,
+            self.original_viz_3d_inactive,
+        ]):
+            raise FileNotFoundError("Не удалось загрузить изображения кнопок режимов визуализатора")
         
         # Убираем стандартный интерфейс окна (frameless)
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
@@ -171,6 +204,13 @@ class MainWindow(QWidget):
         
     def button_clicked(self, button):
         """Обработка нажатия на кнопку"""
+        for mode, btn in self.viz_mode_buttons.items():
+            if button == btn:
+                self.set_viz_mode(mode)
+                return
+        if button == self.file_button:
+            self.select_and_load_file(auto_play=False)
+            return
         if button == self.close_button:
             self.close()
         elif button == self.minimize_button:
@@ -184,21 +224,7 @@ class MainWindow(QWidget):
         """Переключение между воспроизведением и паузой"""
         if not self.audio_player.current_file:
             # Если файл не загружен, открываем диалог выбора файла
-            file_path, _ = QFileDialog.getOpenFileName(
-                self,
-                "Выберите аудиофайл",
-                "",
-                "Audio Files (*.mp3 *.wav *.ogg *.flac *.m4a *.aac);;All Files (*)"
-            )
-            if file_path:
-                try:
-                    self.audio_player.load_file(file_path)
-                    self.load_visualizer_audio(file_path)
-                    self.audio_player.play()
-                    self.is_playing = True
-                    self.update_play_pause_button()
-                except Exception as e:
-                    print(f"Ошибка загрузки файла: {e}")
+            self.select_and_load_file(auto_play=True)
             return
         
         if self.is_playing:
@@ -207,12 +233,14 @@ class MainWindow(QWidget):
         else:
             self.audio_player.play()
             self.is_playing = True
+        self._update_visualizer_play_state()
         self.update_play_pause_button()
     
     def stop_playback(self):
         """Остановка воспроизведения"""
         self.audio_player.stop()
         self.is_playing = False
+        self._update_visualizer_play_state()
         self.update_play_pause_button()
         self.update_progress()  # Сбросить прогресс-бар
     
@@ -220,6 +248,7 @@ class MainWindow(QWidget):
         """Обработка изменения состояния воспроизведения"""
         from PyQt6.QtMultimedia import QMediaPlayer
         self.is_playing = (state == QMediaPlayer.PlaybackState.PlayingState)
+        self._update_visualizer_play_state()
         self.update_play_pause_button()
     
     def update_play_pause_button(self):
@@ -448,6 +477,7 @@ class MainWindow(QWidget):
             self.minimize_button,
             self.play_pause_button,
             self.stop_button,
+            self.file_button,
             self.progress_button,
             self.progress_empty,
             self.progress_filled,
@@ -640,6 +670,28 @@ class MainWindow(QWidget):
         self.play_pause_button.show()
         self.stop_button.show()
         
+        # Кнопка выбора файла
+        scaled_file_btn = self.original_file_button_pixmap.scaled(
+            int(self.original_file_button_pixmap.width() * scale_factor),
+            int(self.original_file_button_pixmap.height() * scale_factor),
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation
+        )
+        if self.file_button:
+            self.file_button.setPixmap(scaled_file_btn)
+            self.file_button.setFixedSize(scaled_file_btn.size())
+        else:
+            self.file_button = CustomButton(scaled_file_btn, self)
+        self.file_button.move(
+            int(config.file_button_x * scale_factor),
+            int(config.file_button_y * scale_factor)
+        )
+        self.file_button.show()
+        self.file_button.raise_()
+        
+        # Кнопки режимов визуализатора
+        self.scale_viz_mode_buttons(scale_factor)
+        
         # Масштабируем прогресс-бар
         self.scale_progress_bar(scale_factor)
         
@@ -734,6 +786,35 @@ class MainWindow(QWidget):
         # Обновляем позицию прогресса
         self.update_progress()
     
+    def scale_viz_mode_buttons(self, scale_factor: float):
+        """Масштабирование и позиционирование кнопок режимов визуализатора."""
+        buttons_def = [
+            ("wave", config.viz_btn_wave_x, config.viz_btn_wave_y,
+             self.original_viz_wave_active, self.original_viz_wave_inactive),
+            ("2d", config.viz_btn_2d_x, config.viz_btn_2d_y,
+             self.original_viz_2d_active, self.original_viz_2d_inactive),
+            ("3d", config.viz_btn_3d_x, config.viz_btn_3d_y,
+             self.original_viz_3d_active, self.original_viz_3d_inactive),
+        ]
+        for mode, base_x, base_y, pix_active, pix_inactive in buttons_def:
+            pixmap = pix_active if self.viz_mode == mode else pix_inactive
+            scaled = pixmap.scaled(
+                int(pixmap.width() * scale_factor),
+                int(pixmap.height() * scale_factor),
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation
+            )
+            btn = self.viz_mode_buttons.get(mode)
+            if btn:
+                btn.setPixmap(scaled)
+                btn.setFixedSize(scaled.size())
+            else:
+                btn = CustomButton(scaled, self)
+                self.viz_mode_buttons[mode] = btn
+            btn.move(int(base_x * scale_factor), int(base_y * scale_factor))
+            btn.show()
+            btn.raise_()
+    
     def show_context_menu(self, position):
         """Показать контекстное меню с опциями масштабирования"""
         menu = QMenu(self)
@@ -762,18 +843,56 @@ class MainWindow(QWidget):
 
         key = event.key()
         if key == Qt.Key.Key_1:
-            self.visualizer.set_mode("wave")  # режим 3 по умолчанию — на 1
+            self.set_viz_mode("wave")
             event.accept()
             return
         if key == Qt.Key.Key_2:
-            self.visualizer.set_mode("2d")
+            self.set_viz_mode("2d")
             event.accept()
             return
         if key == Qt.Key.Key_3:
-            self.visualizer.set_mode("3d")
+            self.set_viz_mode("3d")
             event.accept()
             return
         super().keyPressEvent(event)
+
+    def select_and_load_file(self, auto_play: bool = False):
+        """Открыть диалог выбора файла, загрузить и при необходимости запустить."""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Выберите аудиофайл",
+            "",
+            "Audio Files (*.mp3 *.wav *.ogg *.flac *.m4a *.aac);;All Files (*)"
+        )
+        if not file_path:
+            return
+        try:
+            self.audio_player.load_file(file_path)
+            self.load_visualizer_audio(file_path)
+            if auto_play:
+                self.audio_player.play()
+                self.is_playing = True
+            self._update_visualizer_play_state()
+            self.update_play_pause_button()
+        except Exception as e:
+            print(f"Ошибка загрузки файла: {e}")
+
+    def set_viz_mode(self, mode: str):
+        """Установить режим визуализатора и обновить кнопки."""
+        if mode not in ("wave", "2d", "3d"):
+            return
+        self.viz_mode = mode
+        if self.visualizer:
+            self.visualizer.set_mode(mode)
+            self._update_visualizer_play_state()
+        # Обновить кнопки (переиспользуем масштабирование для смены спрайта)
+        scale_factor = self.scale / 100.0
+        self.scale_viz_mode_buttons(scale_factor)
+
+    def _update_visualizer_play_state(self):
+        """Синхронизировать визуализатор с состоянием плеера."""
+        if self.visualizer:
+            self.visualizer.set_playing(self.is_playing)
 
     # --- Визуализатор и аудиоданные (декод из файла) ---
     def load_visualizer_audio(self, file_path: str):
@@ -804,34 +923,7 @@ class MainWindow(QWidget):
             return
         # FFT
         win = np.hanning(seg.size)
-        seg_win = seg * win
-        spec_full = np.abs(np.fft.rfft(seg_win))
-        freqs = np.fft.rfftfreq(seg_win.size, d=1.0 / self._viz_samplerate)
-
-        # Логарифмическое бинning спектра -> RMS по полосам
-        bars = max(1, config.viz_bar_count)
-        f_min = max(20.0, freqs[1] if freqs.size > 1 else 20.0)  # от 20 Гц
-        f_max = max(f_min * 2, self._viz_samplerate / 2)
-        edges = np.logspace(np.log10(f_min), np.log10(f_max), bars + 1)
-
-        band_vals = []
-        for i in range(bars):
-            lo, hi = edges[i], edges[i + 1]
-            mask = (freqs >= lo) & (freqs < hi)
-            band = spec_full[mask]
-            if band.size == 0:
-                band_vals.append(0.0)
-            else:
-                rms = np.sqrt(np.mean(np.square(band)))
-                band_vals.append(rms)
-
-        band_arr = np.array(band_vals, dtype=float)
-        # dB-скейл
-        eps = 1e-12
-        db = 20.0 * np.log10(band_arr + eps)
-        db = np.maximum(db, config.viz_db_floor)  # clamp
-        db_lin = db - config.viz_db_floor  # сдвигаем вверх, чтобы минимум = 0
-        spec = db_lin
+        spec = np.abs(np.fft.rfft(seg * win))
         # Волновая форма (даунсемплинг для скорости)
         waveform = seg
         downsample = max(8, config.viz_wave_downsample)
@@ -839,7 +931,7 @@ class MainWindow(QWidget):
             idx = np.linspace(0, waveform.size - 1, downsample).astype(int)
             waveform = waveform[idx]
         self.visualizer.feed_features(spec, waveform)
-
+        
     def paintEvent(self, event):
         """Перерисовка окна"""
         super().paintEvent(event)

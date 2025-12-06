@@ -8,13 +8,12 @@
 
 from __future__ import annotations
 
-import math
 from pathlib import Path
 from typing import Sequence, Tuple
 
 import numpy as np
 from PyQt6.QtCore import Qt, QRect, QEventLoop, QUrl
-from PyQt6.QtGui import QColor, QPainter, QPen
+from PyQt6.QtGui import QColor, QPainter, QPen, QMovie
 from PyQt6.QtWidgets import QWidget
 from PyQt6.QtMultimedia import QAudioBuffer, QAudioDecoder, QAudioFormat
 
@@ -105,6 +104,10 @@ class VisualizerWidget(QWidget):
         self._prev_spec: np.ndarray | None = None
         self._prev_wave: np.ndarray | None = None
         self._ema_peak: float = 1e-3
+        self.is_playing: bool = False
+        self.cat_movie = QMovie(str(config.cat_gif))
+        if self.cat_movie.isValid():
+            self.cat_movie.setCacheMode(QMovie.CacheMode.CacheAll)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
@@ -113,6 +116,7 @@ class VisualizerWidget(QWidget):
         if mode not in ("2d", "3d", "wave"):
             return
         self.mode = mode
+        self._sync_movie_state()
         self.update()
 
     def set_scale(self, scale_percent: int):
@@ -159,12 +163,27 @@ class VisualizerWidget(QWidget):
             self.time_domain = wave
         self.update()
 
+    def set_playing(self, is_playing: bool):
+        """Установить состояние воспроизведения (для gif режима)."""
+        self.is_playing = is_playing
+        self._sync_movie_state()
+        self.update()
+
+    def _sync_movie_state(self):
+        """Старт/стоп анимации кота в зависимости от режима и воспроизведения."""
+        if self.mode == "2d" and self.is_playing and self.cat_movie.isValid():
+            if self.cat_movie.state() != QMovie.MovieState.Running:
+                self.cat_movie.start()
+        else:
+            if self.cat_movie.state() != QMovie.MovieState.NotRunning:
+                self.cat_movie.stop()
+
     # ---- Rendering ----
     def paintEvent(self, event):
         painter = QPainter(self)
         self._paint_background(painter)
         if self.mode == "2d":
-            self._paint_bars(painter)
+            self._paint_cat(painter)
         elif self.mode == "3d":
             self._paint_rings(painter)
         else:
@@ -173,30 +192,6 @@ class VisualizerWidget(QWidget):
 
     def _paint_background(self, painter: QPainter):
         painter.fillRect(self.rect(), QColor(config.viz_background))
-
-    def _paint_bars(self, painter: QPainter):
-        """Простой барчарт по спектру."""
-        data = self._get_spectrum()
-        if data.size == 0:
-            return
-        rect = self.rect()
-        bars = min(len(data), max(1, config.viz_bar_count))
-        step = rect.width() / bars
-        max_val = np.max(data) or 1.0
-        pen = QPen(Qt.PenStyle.NoPen)
-        painter.setPen(pen)
-        base_color = QColor(config.viz_color)
-
-        for i in range(bars):
-            val = data[int(i * len(data) / bars)] / max_val
-            val = max(0.0, min(1.0, val))
-            height = val * rect.height()
-            x = int(i * step)
-            y = int(rect.bottom() - height)
-            color = QColor(base_color)
-            color.setAlpha(int(80 + 150 * val))
-            painter.setBrush(color)
-            painter.drawRect(QRect(x, y, int(step * 0.9), int(height)))
 
     def _paint_rings(self, painter: QPainter):
         """Упрощённый 3D-like кольцевой эффект на основе волновой формы."""
@@ -229,6 +224,24 @@ class VisualizerWidget(QWidget):
                 int(radius * 2),
                 int(radius * 2),
             )
+
+    def _paint_cat(self, painter: QPainter):
+        """Рисуем gif с котом по центру, когда играет музыка; иначе фон."""
+        if not (self.is_playing and self.cat_movie.isValid()):
+            return
+        frame = self.cat_movie.currentPixmap()
+        if frame.isNull():
+            return
+        rect = self.rect()
+        # масштабируем в разумных пределах, не выходя за канвас
+        frame_scaled = frame.scaled(
+            rect.size(),
+            Qt.AspectRatioMode.KeepAspectRatio,
+            Qt.TransformationMode.SmoothTransformation
+        )
+        x = rect.x() + (rect.width() - frame_scaled.width()) // 2
+        y = rect.y() + (rect.height() - frame_scaled.height()) // 2
+        painter.drawPixmap(x, y, frame_scaled)
 
     def _paint_wave(self, painter: QPainter):
         """Линейный осциллограф по волновой форме."""

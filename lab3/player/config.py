@@ -21,6 +21,15 @@ class UIConfig:
     progress_bar_empty: Path = UI_DIR / "progress_bar_empty.png"
     progress_bar_filled: Path = UI_DIR / "progress_bar_filled.png"
     progress_button: Path = UI_DIR / "button_prog.png"
+    # Кнопки режимов визуализатора (актив/деактив)
+    viz_button_wave_active: Path = UI_DIR / "button_one_a.png"
+    viz_button_wave_inactive: Path = UI_DIR / "button_one_d.png"
+    viz_button_2d_active: Path = UI_DIR / "button_two_a.png"
+    viz_button_2d_inactive: Path = UI_DIR / "button_two_d.png"
+    viz_button_3d_active: Path = UI_DIR / "button_three_a.png"
+    viz_button_3d_inactive: Path = UI_DIR / "button_three_d.png"
+    file_button: Path = UI_DIR / "file_button.png"
+    cat_gif: Path = UI_DIR / "cat-silly.gif"
     
     # Координаты кнопок управления окном (относительно aphex.png)
     window_buttons_y: int = 15
@@ -40,10 +49,10 @@ class UIConfig:
     time_text_color: str = "#d7a910"  # Цвет текста времени
     
     # Область аудиовизуализатора (px относительно оригинальной aphex.png)
-    viz_x: int = 197
-    viz_y: int = 175
-    viz_width: int = 458   # 655 - 197
-    viz_height: int = 337  # 512 - 175
+    viz_x: int = 196
+    viz_y: int = 174
+    viz_width: int = 459   # 655 - 196
+    viz_height: int = 338  # 512 - 174
     viz_background: str = "#000000"
     viz_color: str = "#d7a910"  # базовый цвет полос/колец
     viz_bar_count: int = 64  # число столбиков в спектре
@@ -52,7 +61,16 @@ class UIConfig:
     viz_spec_smooth_alpha: float = 0.65  # сглаживание спектра (0..1, ближе к 1 — быстрее)
     viz_wave_smooth_alpha: float = 0.5   # сглаживание волновой формы
     viz_autogain_decay: float = 0.995    # эксп. затухание автогейна (0..1)
-    viz_db_floor: float = -60.0          # минимальный dB уровень для баров
+    # Координаты кнопок режимов визуализатора (относительно aphex.png)
+    viz_btn_wave_x: int = 206
+    viz_btn_wave_y: int = 100
+    viz_btn_2d_x: int = 243
+    viz_btn_2d_y: int = 66
+    viz_btn_3d_x: int = 280
+    viz_btn_3d_y: int = 37
+    # Кнопка выбора файла
+    file_button_x: int = 538
+    file_button_y: int = 75
 
 
 # Глобальный объект конфигурации
