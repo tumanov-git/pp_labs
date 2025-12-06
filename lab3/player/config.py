@@ -38,6 +38,21 @@ class UIConfig:
     time_label_gap: int = 10  # Отступ таймера от прогресс-бара
     time_font_size: int = 20  # Размер шрифта при 100%
     time_text_color: str = "#d7a910"  # Цвет текста времени
+    
+    # Область аудиовизуализатора (px относительно оригинальной aphex.png)
+    viz_x: int = 197
+    viz_y: int = 175
+    viz_width: int = 458   # 655 - 197
+    viz_height: int = 337  # 512 - 175
+    viz_background: str = "#000000"
+    viz_color: str = "#d7a910"  # базовый цвет полос/колец
+    viz_bar_count: int = 64  # число столбиков в спектре
+    viz_fft_window_ms: int = 80  # длина окна для FFT
+    viz_wave_downsample: int = 1024  # длина волновой формы после даунсэмплинга
+    viz_spec_smooth_alpha: float = 0.65  # сглаживание спектра (0..1, ближе к 1 — быстрее)
+    viz_wave_smooth_alpha: float = 0.5   # сглаживание волновой формы
+    viz_autogain_decay: float = 0.995    # эксп. затухание автогейна (0..1)
+    viz_db_floor: float = -60.0          # минимальный dB уровень для баров
 
 
 # Глобальный объект конфигурации

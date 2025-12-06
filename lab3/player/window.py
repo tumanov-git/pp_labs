@@ -4,6 +4,8 @@ from PyQt6.QtCore import Qt, QPoint, QTimer
 from PyQt6.QtGui import QPixmap, QPainter, QMouseEvent, QCursor, QAction, QFont
 from .config import config
 from .audio_player import AudioPlayer
+from .viz import VisualizerWidget, decode_file_to_mono
+import numpy as np
 
 
 class CustomButton(QLabel):
@@ -54,10 +56,20 @@ class MainWindow(QWidget):
         self.audio_player.media_player.playbackStateChanged.connect(self.on_playback_state_changed)
         # Состояние воспроизведения (True = играет, False = на паузе/остановлено)
         self.is_playing = False
+        # Виджет аудиовизуализатора
+        self.visualizer: VisualizerWidget | None = None
+        # Буфер для визуализации
+        self._viz_audio: np.ndarray | None = None
+        self._viz_samplerate: int = 0
+        self._viz_timer = QTimer(self)
+        self._viz_timer.timeout.connect(self.update_visualizer_frame)
+        self._viz_timer.start(33)  # ~30 FPS
         self.init_ui()
         
     def init_ui(self):
         """Инициализация интерфейса"""
+        # Разрешаем обработку горячих клавиш
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         # Загружаем исходные изображения
         self.original_aphex_pixmap = QPixmap(str(config.aphex_image))
         if self.original_aphex_pixmap.isNull():
@@ -181,6 +193,7 @@ class MainWindow(QWidget):
             if file_path:
                 try:
                     self.audio_player.load_file(file_path)
+                    self.load_visualizer_audio(file_path)
                     self.audio_player.play()
                     self.is_playing = True
                     self.update_play_pause_button()
@@ -522,6 +535,13 @@ class MainWindow(QWidget):
         # Обновляем фон
         self.background_label.setPixmap(scaled_aphex)
         self.background_label.setGeometry(0, 0, scaled_width, scaled_height)
+
+        # Создаем/масштабируем визуализатор
+        if not self.visualizer:
+            self.visualizer = VisualizerWidget(self)
+        self.visualizer.set_scale(scale_percent)
+        self.visualizer.show()
+        self.visualizer.raise_()
         
         # Масштабируем кнопки
         scaled_close = self.original_close_pixmap.scaled(
@@ -734,6 +754,92 @@ class MainWindow(QWidget):
             for scale_value, action in self.scale_actions.items():
                 action.setChecked(scale_value == self.scale)
         
+    def keyPressEvent(self, event):
+        """Горячие клавиши для смены режима визуализатора."""
+        if not self.visualizer:
+            super().keyPressEvent(event)
+            return
+
+        key = event.key()
+        if key == Qt.Key.Key_1:
+            self.visualizer.set_mode("wave")  # режим 3 по умолчанию — на 1
+            event.accept()
+            return
+        if key == Qt.Key.Key_2:
+            self.visualizer.set_mode("2d")
+            event.accept()
+            return
+        if key == Qt.Key.Key_3:
+            self.visualizer.set_mode("3d")
+            event.accept()
+            return
+        super().keyPressEvent(event)
+
+    # --- Визуализатор и аудиоданные (декод из файла) ---
+    def load_visualizer_audio(self, file_path: str):
+        """Декодировать аудио в память для визуализации."""
+        data, samplerate = decode_file_to_mono(file_path)
+        if samplerate <= 0 or data.size == 0:
+            self._viz_audio = None
+            self._viz_samplerate = 0
+            return
+        self._viz_audio = data.astype(np.float32)
+        self._viz_samplerate = samplerate
+
+    def update_visualizer_frame(self):
+        """Периодический апдейт визуализатора по позиции плеера."""
+        if not self.visualizer or self._viz_audio is None or self._viz_samplerate <= 0:
+            return
+        pos_ms = self.audio_player.get_position()
+        if pos_ms < 0:
+            return
+        # Окно вокруг текущей позиции
+        window_ms = config.viz_fft_window_ms
+        center = int(pos_ms * self._viz_samplerate / 1000)
+        half = int(window_ms * self._viz_samplerate / 1000 / 2)
+        start = max(0, center - half)
+        end = min(len(self._viz_audio), start + 2048)
+        seg = self._viz_audio[start:end]
+        if seg.size == 0:
+            return
+        # FFT
+        win = np.hanning(seg.size)
+        seg_win = seg * win
+        spec_full = np.abs(np.fft.rfft(seg_win))
+        freqs = np.fft.rfftfreq(seg_win.size, d=1.0 / self._viz_samplerate)
+
+        # Логарифмическое бинning спектра -> RMS по полосам
+        bars = max(1, config.viz_bar_count)
+        f_min = max(20.0, freqs[1] if freqs.size > 1 else 20.0)  # от 20 Гц
+        f_max = max(f_min * 2, self._viz_samplerate / 2)
+        edges = np.logspace(np.log10(f_min), np.log10(f_max), bars + 1)
+
+        band_vals = []
+        for i in range(bars):
+            lo, hi = edges[i], edges[i + 1]
+            mask = (freqs >= lo) & (freqs < hi)
+            band = spec_full[mask]
+            if band.size == 0:
+                band_vals.append(0.0)
+            else:
+                rms = np.sqrt(np.mean(np.square(band)))
+                band_vals.append(rms)
+
+        band_arr = np.array(band_vals, dtype=float)
+        # dB-скейл
+        eps = 1e-12
+        db = 20.0 * np.log10(band_arr + eps)
+        db = np.maximum(db, config.viz_db_floor)  # clamp
+        db_lin = db - config.viz_db_floor  # сдвигаем вверх, чтобы минимум = 0
+        spec = db_lin
+        # Волновая форма (даунсемплинг для скорости)
+        waveform = seg
+        downsample = max(8, config.viz_wave_downsample)
+        if waveform.size > downsample:
+            idx = np.linspace(0, waveform.size - 1, downsample).astype(int)
+            waveform = waveform[idx]
+        self.visualizer.feed_features(spec, waveform)
+
     def paintEvent(self, event):
         """Перерисовка окна"""
         super().paintEvent(event)
