@@ -31,6 +31,7 @@ class UIConfig:
     file_button: Path = UI_DIR / "file_button.png"
     cat_gif: Path = UI_DIR / "cat-silly.gif"
     pixel_font: Path = UI_DIR / "thin_pixel.ttf"
+    app_icon: Path = UI_DIR / "aphex_icon.png"
     
     # Координаты кнопок управления окном (относительно aphex.png)
     window_buttons_y: int = 15

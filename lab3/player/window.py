@@ -1,11 +1,12 @@
 """Главное окно приложения"""
+import sys
+import numpy as np
 from PyQt6.QtWidgets import QWidget, QLabel, QMenu, QFileDialog, QMenuBar, QApplication
 from PyQt6.QtCore import Qt, QPoint, QTimer, pyqtSignal
-from PyQt6.QtGui import QPixmap, QPainter, QMouseEvent, QCursor, QAction, QFont, QPalette
+from PyQt6.QtGui import QPixmap, QPainter, QMouseEvent, QCursor, QAction, QFont, QPalette, QIcon
 from .config import config
 from .audio_player import AudioPlayer
 from .viz import VisualizerWidget, decode_file_to_mono
-import numpy as np
 
 
 class CustomButton(QLabel):
@@ -280,6 +281,12 @@ class MainWindow(QWidget):
         # Делаем окно прозрачным
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         
+        # Устанавливаем название и иконку окна
+        self.setWindowTitle("Aphex Player")
+        icon_path = str(config.app_icon)
+        if config.app_icon.exists():
+            self.setWindowIcon(QIcon(icon_path))
+        
         # Создаем фон с изображением Aphex Twin
         self.background_label = QLabel(self)
         self.background_label.setScaledContents(False)
@@ -320,7 +327,6 @@ class MainWindow(QWidget):
         self.menu_bar.setFont(self._app_font(config.ui_font_size))
         
         # На Windows/Linux прячем меню (будет контекстным по ПКМ), на Mac оно нативное
-        import sys
         if sys.platform != 'darwin':
             # На Windows/Linux меню не будет видимым, только для контекстного меню
             self.menu_bar.hide()
@@ -686,7 +692,6 @@ class MainWindow(QWidget):
             event.accept()
         elif event.button() == Qt.MouseButton.RightButton:
             # Показываем контекстное меню (только на Windows/Linux)
-            import sys
             if sys.platform != 'darwin':
                 self.show_context_menu(event.globalPosition().toPoint())
             event.accept()

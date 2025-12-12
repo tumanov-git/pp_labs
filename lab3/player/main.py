@@ -1,12 +1,18 @@
 """Точка входа в приложение"""
 import sys
 from PyQt6.QtWidgets import QApplication
+from PyQt6.QtGui import QIcon
 from .window import MainWindow
 
 
 def main():
     """Главная функция"""
     app = QApplication(sys.argv)
+    
+    # Устанавливаем название приложения
+    app.setApplicationName("Aphex Player")
+    app.setOrganizationName("Aphex Player")
+    app.setApplicationDisplayName("Aphex Player")
     
     # Загружаем кастомный шрифт и ставим его по умолчанию (с кириллицей)
     try:
@@ -19,6 +25,14 @@ def main():
                 app.setFont(QFont(families[0], config.ui_font_size))
     except Exception as e:
         print(f"Не удалось загрузить шрифт: {e}")
+    
+    # Устанавливаем иконку приложения
+    try:
+        from .config import config
+        app_icon = QIcon(str(config.app_icon))
+        app.setWindowIcon(app_icon)
+    except Exception as e:
+        print(f"Не удалось загрузить иконку: {e}")
     
     # Создаем и показываем главное окно
     window = MainWindow()

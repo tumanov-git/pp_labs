@@ -108,8 +108,15 @@ class VisualizerWidget(QWidget):
         self.cat_movie = QMovie(str(config.cat_gif))
         if self.cat_movie.isValid():
             self.cat_movie.setCacheMode(QMovie.CacheMode.CacheAll)
+            # Подключаем обновление при смене кадра
+            self.cat_movie.frameChanged.connect(self._on_cat_frame_changed)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+    
+    def _on_cat_frame_changed(self):
+        """Обновление виджета при смене кадра гифки."""
+        if self.mode == "2d":
+            self.update()
 
     def set_mode(self, mode: str):
         """Переключение режима визуализации."""
@@ -226,8 +233,8 @@ class VisualizerWidget(QWidget):
             )
 
     def _paint_cat(self, painter: QPainter):
-        """Рисуем gif с котом по центру, когда играет музыка; иначе фон."""
-        if not (self.is_playing and self.cat_movie.isValid()):
+        """Рисуем gif с котом по центру. При паузе замирает на текущем кадре."""
+        if not self.cat_movie.isValid():
             return
         frame = self.cat_movie.currentPixmap()
         if frame.isNull():
