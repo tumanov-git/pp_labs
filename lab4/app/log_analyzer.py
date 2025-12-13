@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 from collections import Counter
 from dataclasses import dataclass
@@ -18,9 +19,16 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+import pandas as pd
+import numpy as np
+
+_BASE_DIR = Path(__file__).parent.parent
+_MPL_DIR = (_BASE_DIR / ".cache" / "matplotlib").resolve()
+_MPL_DIR.mkdir(parents=True, exist_ok=True)
+os.environ.setdefault("MPLCONFIGDIR", str(_MPL_DIR))
+
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
-import numpy as np
 from matplotlib.patches import Wedge
 from matplotlib.colors import LinearSegmentedColormap
 
@@ -91,6 +99,45 @@ def parse_log_file(log_path: Path) -> list[WeatherLogEntry]:
                 ))
     
     return entries
+
+
+def entries_to_df(entries: list[WeatherLogEntry]) -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "timestamp": [e.timestamp for e in entries],
+            "phase": [e.phase for e in entries],
+            "clouds": [e.clouds_percent for e in entries],
+            "base": [e.base for e in entries],
+        }
+    )
+
+
+def permutation_test_mean_diff(
+    df: pd.DataFrame,
+    group_col: str,
+    value_col: str,
+    a: str,
+    b: str,
+    n_perm: int = 5000,
+    seed: int = 7,
+) -> tuple[float, float]:
+    sub = df[df[group_col].isin([a, b])][[group_col, value_col]].dropna().copy()
+    if sub.empty:
+        return float("nan"), float("nan")
+    g = (sub[group_col] == a).to_numpy(dtype=bool)
+    x = sub[value_col].to_numpy(dtype=float)
+    obs = float(x[g].mean() - x[~g].mean())
+    rng = np.random.default_rng(seed)
+    n = len(x)
+    count = 0
+    for _ in range(n_perm):
+        idx = rng.permutation(n)
+        gp = g[idx]
+        diff = float(x[gp].mean() - x[~gp].mean())
+        if diff >= obs:
+            count += 1
+    p_value = (count + 1) / (n_perm + 1)
+    return obs, float(p_value)
 
 
 def setup_figure_style(fig, ax, title: str):
@@ -436,6 +483,13 @@ def main():
     plot_clouds_heatmap(entries, output_dir)
     plot_daily_summary(entries, output_dir)
     plot_weather_by_phase(entries, output_dir)
+
+    df = entries_to_df(entries)
+    obs, p = permutation_test_mean_diff(df, "phase", "clouds", a="night", b="day", n_perm=5000, seed=7)
+    print("\nH0: mean_clouds(night) <= mean_clouds(day)")
+    print("H1: mean_clouds(night) >  mean_clouds(day)")
+    print(f"obs_diff = {obs:.3f}")
+    print(f"p_value  = {p:.5f}")
     
     print(f'\nГотово! Все графики сохранены в {output_dir}')
 
