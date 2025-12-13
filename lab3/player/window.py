@@ -1193,7 +1193,7 @@ class MainWindow(QWidget):
             if not title:
                 title = self.audio_player.current_file.stem
         if not artist:
-            artist = "Unknown"
+            artist = ""
         return artist, title
 
     def update_status_marquee_state(self):

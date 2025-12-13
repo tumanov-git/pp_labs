@@ -1,0 +1,18 @@
+[Unit]
+Description=Telegram TGWall (sunrise/sunset)
+After=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/telegram-wallpaper
+EnvironmentFile=/root/telegram-wallpaper/config/.env.core
+EnvironmentFile=/root/telegram-wallpaper/config/.env.telegram
+EnvironmentFile=/root/telegram-wallpaper/config/.env.weather
+ExecStart=/usr/bin/python3 -m app.cli daemon
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+

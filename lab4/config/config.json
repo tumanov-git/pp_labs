@@ -1,0 +1,77 @@
+{
+  "flags": {
+    "mode": "weather_based",
+    "cache_enabled": true,
+    "use_random_selection": true,
+    "log_details": false,
+    "apply_fog_for_all_phases": false
+  },
+  "probabilities": {
+    "fogChance": 0.3,
+    "thunderChance": 0.5
+  },
+  "update": {
+    "interval_minutes": 30,
+    "timezone": "Europe/Moscow"
+  },
+  "logs": {
+    "max_entries": 50
+  },
+  "stats": {
+    "enabled": true,
+    "file": ".cache/weather_stats.json"
+  },
+  "matrix": {
+    "night": {
+      "clear":       ["backgrounds/night_clear.jpg"],
+      "cloudy":      ["backgrounds/night_cloudy.jpg"],
+      "overcast":    ["backgrounds/night_overcast.jpg"],
+      "rain":        ["backgrounds/night_rain.jpg"],
+      "heavy_rain":  ["backgrounds/night_heavy_rain.jpg"],
+      "thunderstorm":["backgrounds/night_thunder.jpg"]
+    },
+    "dawn": {
+      "clear":       ["backgrounds/dawn_clear.jpg"],
+      "cloudy":      ["backgrounds/dawn_cloudy.jpg"],
+      "overcast":    ["backgrounds/dawn_overcast.jpg"],
+      "rain":        ["backgrounds/dawn_rain.jpg"],
+      "heavy_rain":  ["backgrounds/dawn_heavy_rain.jpg"],
+      "thunderstorm":["backgrounds/dawn_thunder.jpg"],
+      "fog_clear":   ["backgrounds/dawn_fog_clear.jpg"],
+      "fog_cloudy":  ["backgrounds/dawn_fog_cloudy.jpg"]
+    },
+    "morning": {
+      "clear":       ["backgrounds/morning_clear_1.jpg"],
+      "cloudy":      ["backgrounds/morning_cloudy.jpg"],
+      "overcast":    ["backgrounds/morning_overcast.jpg"],
+      "rain":        ["backgrounds/morning_rain.jpg"],
+      "heavy_rain":  ["backgrounds/morning_heavy_rain.jpg"],
+      "thunderstorm":["backgrounds/morning_thunder.jpg"]
+    },
+    "day": {
+      "clear":       ["backgrounds/day_clear.jpg"],
+      "cloudy":      ["backgrounds/day_cloudy.jpg"],
+      "overcast":    ["backgrounds/day_overcast.jpg"],
+      "rain":        ["backgrounds/day_rain.jpg"],
+      "heavy_rain":  ["backgrounds/day_heavy_rain.jpg"],
+      "thunderstorm":["backgrounds/day_thunder.jpg"]
+    },
+    "evening": {
+      "clear":       ["backgrounds/evening_clear.jpg"],
+      "cloudy":      ["backgrounds/evening_cloudy.jpg"],
+      "overcast":    ["backgrounds/evening_overcast.jpg"],
+      "rain":        ["backgrounds/evening_rain.jpg"],
+      "heavy_rain":  ["backgrounds/evening_heavy_rain.jpg"],
+      "thunderstorm":["backgrounds/evening_thunder.jpg"]
+    },
+    "sunset": {
+      "clear":       ["backgrounds/sunset_clear.jpg"],
+      "cloudy":      ["backgrounds/sunset_cloudy.jpg"],
+      "overcast":    ["backgrounds/sunset_overcast.jpg"],
+      "rain":        ["backgrounds/sunset_rain.jpg"],
+      "heavy_rain":  ["backgrounds/sunset_heavy_rain.jpg"],
+      "thunderstorm":["backgrounds/sunset_thunder.jpg"]
+    }
+  }
+}
+
