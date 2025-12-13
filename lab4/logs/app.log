@@ -1,0 +1,54 @@
+2025-12-13 09:21:18 | INFO | app.service | Запуск обновления tgwall для города=Moscow
+2025-12-13 09:21:18 | INFO | weather | Mode=weather_based Phase=morning Base=overcast Main=clouds Wid=804 Clouds=97
+2025-12-13 09:21:18 | INFO | weather | Final phase=morning instance=overcast (mode=weather_based fog_applied=False)
+2025-12-13 09:21:18 | INFO | telethon.network.mtprotosender | Connecting to 149.154.167.51:443/TcpFull...
+2025-12-13 09:21:18 | INFO | telethon.network.mtprotosender | Connection to 149.154.167.51:443/TcpFull complete!
+2025-12-13 09:21:18 | INFO | telethon.client.uploads | Uploading file of 2005373 bytes in 16 chunks of 131072
+2025-12-13 09:21:19 | INFO | app.telegram_client | Обои успешно применены к @atoblog
+2025-12-13 09:21:19 | INFO | app.service | Phase=morning Weather=overcast Wallpaper=/root/telegram-wallpaper-atob/backgrounds/morning_overcast.jpg
+2025-12-13 09:21:19 | INFO | app.log_utils | ✅ Weather stats updated: overcast -> 484 total
+2025-12-13 09:21:19 | INFO | telethon.network.mtprotosender | Disconnecting from 149.154.167.51:443/TcpFull...
+2025-12-13 09:21:19 | INFO | telethon.network.mtprotosender | Disconnection from 149.154.167.51:443/TcpFull complete!
+2025-12-13 09:21:19 | INFO | app.service | Scheduler: now=2025-12-13 09:21:19.309219+03:00 phase=morning -> next=day at 2025-12-13 10:51:18+03:00 (in 5399s)
+2025-12-13 10:51:18 | INFO | app.service | Запуск обновления tgwall для города=Moscow
+2025-12-13 10:51:18 | INFO | weather | Mode=weather_based Phase=day Base=overcast Main=clouds Wid=804 Clouds=100
+2025-12-13 10:51:18 | INFO | weather | Final phase=day instance=overcast (mode=weather_based fog_applied=False)
+2025-12-13 10:51:18 | INFO | telethon.network.mtprotosender | Connecting to 149.154.167.51:443/TcpFull...
+2025-12-13 10:51:18 | INFO | telethon.network.mtprotosender | Connection to 149.154.167.51:443/TcpFull complete!
+2025-12-13 10:51:18 | INFO | telethon.client.uploads | Uploading file of 1837453 bytes in 15 chunks of 131072
+2025-12-13 10:51:19 | INFO | app.telegram_client | Обои успешно применены к @atoblog
+2025-12-13 10:51:19 | INFO | app.service | Phase=day Weather=overcast Wallpaper=/root/telegram-wallpaper-atob/backgrounds/day_overcast.jpg
+2025-12-13 10:51:19 | INFO | app.log_utils | ✅ Weather stats updated: overcast -> 485 total
+2025-12-13 10:51:19 | INFO | telethon.network.mtprotosender | Disconnecting from 149.154.167.51:443/TcpFull...
+2025-12-13 10:51:19 | INFO | telethon.network.mtprotosender | Disconnection from 149.154.167.51:443/TcpFull complete!
+2025-12-13 10:51:19 | INFO | app.service | Scheduler: now=2025-12-13 10:51:19.279741+03:00 phase=day -> next=evening at 2025-12-13 13:56:18+03:00 (in 11099s)
+2025-12-13 13:56:18 | INFO | app.service | Запуск обновления tgwall для города=Moscow
+2025-12-13 13:56:18 | INFO | weather | Mode=weather_based Phase=evening Base=overcast Main=clouds Wid=804 Clouds=97
+2025-12-13 13:56:18 | INFO | weather | Final phase=evening instance=overcast (mode=weather_based fog_applied=False)
+2025-12-13 13:56:18 | INFO | telethon.network.mtprotosender | Connecting to 149.154.167.51:443/TcpFull...
+2025-12-13 13:56:18 | INFO | telethon.network.mtprotosender | Connection to 149.154.167.51:443/TcpFull complete!
+2025-12-13 13:56:18 | INFO | telethon.client.uploads | Uploading file of 2005373 bytes in 16 chunks of 131072
+2025-12-13 13:56:19 | INFO | app.telegram_client | Обои успешно применены к @atoblog
+2025-12-13 13:56:19 | INFO | app.service | Phase=evening Weather=overcast Wallpaper=/root/telegram-wallpaper-atob/backgrounds/evening_overcast.jpg
+2025-12-13 13:56:19 | INFO | app.log_utils | ✅ Weather stats updated: overcast -> 486 total
+2025-12-13 13:56:19 | INFO | telethon.network.mtprotosender | Disconnecting from 149.154.167.51:443/TcpFull...
+2025-12-13 13:56:19 | INFO | telethon.network.mtprotosender | Disconnection from 149.154.167.51:443/TcpFull complete!
+2025-12-13 13:56:19 | INFO | app.service | Scheduler: now=2025-12-13 13:56:19.700040+03:00 phase=evening -> next=twilight at 2025-12-13 16:16:18+03:00 (in 8398s)
+2025-12-13 16:16:18 | INFO | app.service | Запуск обновления tgwall для города=Moscow
+2025-12-13 16:16:18 | INFO | weather | Mode=weather_based Phase=twilight Base=overcast Main=clouds Wid=804 Clouds=99
+2025-12-13 16:16:18 | INFO | weather | Final phase=twilight instance=overcast (mode=weather_based fog_applied=False)
+2025-12-13 16:16:18 | WARNING | app.wallpapers | Файл обоев не существует: /root/telegram-wallpaper-atob/backgrounds/twilight_overcast.jpg
+2025-12-13 16:16:18 | WARNING | app.service | Файл обоев отсутствует; пропускаем обновление Telegram: /root/telegram-wallpaper-atob/backgrounds/twilight_overcast.jpg
+2025-12-13 16:16:18 | INFO | app.service | Scheduler: now=2025-12-13 16:16:18.307054+03:00 phase=twilight -> next=night at 2025-12-13 16:46:18+03:00 (in 1800s)
+2025-12-13 16:46:18 | INFO | app.service | Запуск обновления tgwall для города=Moscow
+2025-12-13 16:46:18 | INFO | weather | Mode=weather_based Phase=night Base=overcast Main=clouds Wid=804 Clouds=91
+2025-12-13 16:46:18 | INFO | weather | Final phase=night instance=overcast (mode=weather_based fog_applied=False)
+2025-12-13 16:46:18 | INFO | telethon.network.mtprotosender | Connecting to 149.154.167.51:443/TcpFull...
+2025-12-13 16:46:18 | INFO | telethon.network.mtprotosender | Connection to 149.154.167.51:443/TcpFull complete!
+2025-12-13 16:46:18 | INFO | telethon.client.uploads | Uploading file of 2908233 bytes in 23 chunks of 131072
+2025-12-13 16:46:20 | INFO | app.telegram_client | Обои успешно применены к @atoblog
+2025-12-13 16:46:20 | INFO | app.service | Phase=night Weather=overcast Wallpaper=/root/telegram-wallpaper-atob/backgrounds/night_overcast.jpg
+2025-12-13 16:46:20 | INFO | app.log_utils | ✅ Weather stats updated: overcast -> 487 total
+2025-12-13 16:46:20 | INFO | telethon.network.mtprotosender | Disconnecting from 149.154.167.51:443/TcpFull...
+2025-12-13 16:46:20 | INFO | telethon.network.mtprotosender | Disconnection from 149.154.167.51:443/TcpFull complete!
+2025-12-13 16:46:20 | INFO | app.service | Scheduler: now=2025-12-13 16:46:20.320508+03:00 phase=night -> next=dawn at 2025-12-14 08:21:18+03:00 (in 56098s)
